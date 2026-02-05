@@ -11,7 +11,7 @@ Event.init({
     primaryKey: true,
   },
   tenantId: {
-    type: DataTypes.UUID,
+    type: DataTypes.STRING,
     allowNull: false,
   },
   provider: {

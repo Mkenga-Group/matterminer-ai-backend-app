@@ -1,58 +1,68 @@
 const express = require('express');
 const router = express.Router();
 const { getAuthUrl: getGoogleAuthUrl, getTokens: getGoogleTokens } = require('../services/googleOAuth');
-const { getAuthUrl: getMicrosoftAuthUrl, getTokenByCode: getMicrosoftTokenByCode } = require('../services/microsoftOAuth');
+const { storeTokens } = require('../services/redisService');
+const { registerCalendarWatch } = require('../services/googleWebhookService');
+
 const jwt = require('jsonwebtoken');
+
 require('dotenv').config();
 
-// Google OAuth - Redirect user to Google consent screen
 router.get('/google', (req, res) => {
-  const url = getGoogleAuthUrl();
-  res.redirect(url);
+   try {
+       const tenantId = req.query.tenantId || 'default_tenant';
+       const url = getGoogleAuthUrl(tenantId);
+
+       res.redirect(url);
+   } catch (error) { 
+       console.error('Error generating Auth URL:', error.message);
+       res.status(500).json({ error: 'Internal Server Error' });
+   }
 });
 
-// Google OAuth callback
-router.get('/google/callback', async (req, res) => {
+router.get('/oauth2callback', async (req, res) => {
   const code = req.query.code;
-  if (!code) return res.status(400).json({ error: 'No code provided' });
-
-  try {
-    const tokens = await getGoogleTokens(code);
-    // Here you would save tokens to DB associated with user/tenant
-    // For demo, create JWT with tokens info
-    const jwtToken = jwt.sign({ provider: 'google', tokens }, process.env.JWT_SECRET, { expiresIn: '1h' });
-    res.json({ jwtToken, tokens });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Failed to get Google tokens' });
+  const tenantId = req.query.state || 'default_tenant';
+	
+  if(!code) {
+     return res.status(400).json({ error: 'No code provided' });
   }
-});
 
-// Microsoft OAuth - Redirect user to Microsoft consent screen
-router.get('/microsoft', async (req, res) => {
-  try {
-    const url = await getMicrosoftAuthUrl();
-    res.redirect(url);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Failed to get Microsoft auth URL' });
-  }
-});
+  try { 
+      const tokens = await getGoogleTokens(code);
+      console.log('Successfully retrieved tokens:', tokens);
 
-// Microsoft OAuth callback
-router.get('/microsoft/callback', async (req, res) => {
-  const code = req.query.code;
-  if (!code) return res.status(400).json({ error: 'No code provided' });
+      // Store in redis per tenancy	  
+      await storeTokens(tenantId, tokens);
+      // REGISTER THE WEBHOOK (The "Watch")
+      // This creates the Integration record and tells Google to ping us
+      //await registerCalendarWatch(tenantId);	  
 
-  try {
-    const tokenResponse = await getMicrosoftTokenByCode(code);
-    // Save tokens to DB associated with user/tenant
-    const jwtToken = jwt.sign({ provider: 'microsoft', tokens: tokenResponse }, process.env.JWT_SECRET, { expiresIn: '1h' });
-    res.json({ jwtToken, tokens: tokenResponse });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Failed to get Microsoft tokens' });
-  }
+      if (!process.env.JWT_SECRET) {
+	  throw new Error('JWT_SECRET is not defined in environment variables');
+      }
+
+      const jwtToken = jwt.sign(
+        { provider: 'google', tenantId: tenantId }, 
+	process.env.JWT_SECRET, 
+        { expiresIn: '1h' }
+      );
+
+      res.json({ 
+          success: true,
+	  jwtToken, 
+	  tenantId    
+	  //tokens 
+      });
+   } catch (error) {
+      if (error.response && error.response.data) {
+	  console.error('Google OAuth Error Response:', error.response.data);
+      } else {
+	  console.error('OAuth Callback Error:', error.message);
+      }
+
+      res.status(500).json({ error: 'Failed to get Google tokens', details: error.response?.data?.error_description || error.message });
+   }
 });
 
 module.exports = router;

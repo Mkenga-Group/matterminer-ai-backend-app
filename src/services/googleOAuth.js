@@ -2,31 +2,40 @@ const { google } = require('googleapis');
 const OAuth2 = google.auth.OAuth2;
 require('dotenv').config();
 
-const oauth2Client = new OAuth2(
-  process.env.GOOGLE_CLIENT_ID,
-  process.env.GOOGLE_CLIENT_SECRET,
-  process.env.GOOGLE_REDIRECT_URI
-);
+const REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI;
+
+function createConnection() {
+   return new OAuth2(
+     process.env.GOOGLE_CLIENT_ID,
+     process.env.GOOGLE_CLIENT_SECRET,
+     REDIRECT_URI
+   );
+}
+
+require('dotenv').config();
 
 const scopes = [
-  'https://www.googleapis.com/auth/calendar',
-  'https://www.googleapis.com/auth/calendar.events',
-  'https://www.googleapis.com/auth/userinfo.email',
-  'https://www.googleapis.com/auth/userinfo.profile'
+   'https://www.googleapis.com/auth/calendar',
+   'https://www.googleapis.com/auth/calendar.events',
+   'https://www.googleapis.com/auth/userinfo.email',
+   'https://www.googleapis.com/auth/userinfo.profile'
 ];
 
-function getAuthUrl() {
-  return oauth2Client.generateAuthUrl({
-    access_type: 'offline',
-    scope: scopes,
-    prompt: 'consent',
-  });
+function getAuthUrl(tenantId) {
+   const auth = createConnection();
+   return auth.generateAuthUrl({
+      access_type: 'offline',
+      scope: scopes,
+      prompt: 'consent', // Essential to ensure you always get a refresh_token
+      state: tenantId	   
+   });
 }
 
 async function getTokens(code) {
-  const { tokens } = await oauth2Client.getToken(code);
-  oauth2Client.setCredentials(tokens);
-  return tokens;
+   const auth = createConnection();
+   // The getToken method is what communicates with Google	
+   const { tokens } = await auth.getToken(code);
+   return tokens;
 }
 
-module.exports = { getAuthUrl, getTokens, oauth2Client };
+module.exports = { getAuthUrl, getTokens };
