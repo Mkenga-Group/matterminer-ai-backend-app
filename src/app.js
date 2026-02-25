@@ -8,9 +8,11 @@ const path = require('path');
 
 const uuid = require('uuid');
 
+const morgan = require('morgan');
+
 const routes = require('./routes');
 
-const { sequelize } = require('./models');
+const sequelize = require('./config/database');
 
 const swaggerUi = require('swagger-ui-express');
 

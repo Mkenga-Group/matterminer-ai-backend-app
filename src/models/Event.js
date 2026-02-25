@@ -9,6 +9,9 @@ Event.init({
     type: DataTypes.UUID,
     defaultValue: DataTypes.UUIDV4,
     primaryKey: true,
+    validate: {
+       isUUID: 4 // Ensures only UUID version 4 is accepted
+    }
   },
   tenantId: {
     type: DataTypes.STRING,

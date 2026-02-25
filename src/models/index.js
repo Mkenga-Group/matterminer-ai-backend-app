@@ -3,8 +3,9 @@ const sequelize = require('../config/database');
 const Event = require('./Event');
 const AuditLog = require('./AuditLog');
 const Integration = require('./Integration');
+const Wallet = require('./Wallet');
 
 Event.hasMany(AuditLog, { foreignKey: 'eventId', as: 'auditLogs' });
 AuditLog.belongsTo(Event, { foreignKey: 'eventId', as: 'event' });
 
-module.exports = { sequelize, Event, AuditLog, Integration };
+module.exports = { sequelize, Event, AuditLog, Integration, Wallet };

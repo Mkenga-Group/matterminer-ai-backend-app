@@ -99,6 +99,7 @@ async function getValidTokens(tenantId) {
                 return updatedTokens;
             } catch (error) {
                 console.error("Refresh failed. User must re-authenticate.");
+		await revokeTokens(tenantId);    
                 return null;
             }
         }

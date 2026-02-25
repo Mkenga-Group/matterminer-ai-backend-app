@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { getAuthUrl: getGoogleAuthUrl, getTokens: getGoogleTokens } = require('../services/googleOAuth');
-const { storeTokens } = require('../services/redisService');
+const { storeTokens, revokeTokens } = require('../services/redisService');
 const { registerCalendarWatch } = require('../services/googleWebhookService');
 
 const jwt = require('jsonwebtoken');
@@ -104,6 +104,16 @@ router.get('/accessToken', async (req, res) => {
 
       res.status(500).json({ error: 'Failed to get access token', details: error.response?.data?.error_description || error.message });
    }
+});
+
+router.post('/logout', async (req, res) => {
+    try {
+        const tenantId = req.body.tenant_id;
+        await revokeTokens(tenantId);
+        res.json({ message: "Logged out successfully and tokens cleared." });
+    } catch (error) {
+        res.status(500).json({ error: "Logout failed" });
+    }
 });
 
 module.exports = router;

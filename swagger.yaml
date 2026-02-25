@@ -1,8 +1,8 @@
 openapi: 3.0.0
 info:
-  title: MatterMiner Multi-Tenant Calendar API
+  title: MatterMiner Multi-Tenant Calendar API & AI Credit Wallet.
   version: 1.0.0
-  description: API for managing tenant events with Google Calendar integration
+  description: API for managing tenant events with Google Calendar integration | API for tracking each tenant AI Credit Usage.
 
 servers:
   - url: https://dev.matterminer.com/calendar
@@ -18,11 +18,11 @@ components:
     Event:
       type: object
       properties:
-        id: { type: string, format: uuid }
+        #id: { type: string, format: uuid }
         title: { type: string }
         tenantId: { type: string }  
         description: { type: string } 
-        provider: { type: string }  
+        #provider: { type: string }  
         startTime: { type: string, format: date-time }
         endTime: { type: string, format: date-time }
         #providerEventId: { type: string, nullable: true }
@@ -94,7 +94,21 @@ paths:
           schema:
             type: string
           required: true
-          description: Unique ID for the tenant (defaults to 'default_tenant')        
+          description: Unique ID for the tenant (defaults to 'default_tenant')    
+        - name: page
+          in: query
+          description: The page number to retrieve.
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+        - name: limit
+          in: query
+          description: Number of records per page.
+          schema:
+            type: integer
+            default: 10
+            maximum: 100    
       responses:
         200:
           description: A list of events
@@ -104,6 +118,8 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Event'
+        404:
+          description: No event found
     post:
       summary: Create a new event
       tags: [Events]
@@ -142,9 +158,112 @@ paths:
       responses:
         200:
           description: Deleted
+  /events/event-range:
+    get:
+      summary: Retrieve paginated events by date range
+      description: |
+        Fecthes a list of events for the authenticated tenant. 
+        - If `startTime` or `endTime` are omitted, it defaults to a **2-day window starting from now**.
+        - `endTime` must be chronologically after `startTime`.
+        - Supports fuzzy search across title and description.
+      tags: [Events]
+      parameters: 
+        - name: startTime
+          in: query
+          description: ISO 8601 timestamp for the start of the range. Defaults to current time.
+          required: false
+          schema:
+            type: string
+            format: date-time
+            example: "2026-02-20T09:00:00Z"
+        - name: endTime
+          in: query
+          description: ISO 8601 timestamp for the end of the range. Defaults to startTime + 2 days.
+          required: false
+          schema:
+            type: string
+            format: date-time
+            example: "2026-02-22T09:00:00Z"
+        - name: page
+          in: query
+          description: The page number to retrieve.
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+        - name: limit
+          in: query
+          description: Number of records per page.
+          schema:
+            type: integer
+            default: 10
+            maximum: 100          
+        - name: search
+          in: query
+          description: Fuzzy search keyword for event title or description.
+          schema:
+            type: string
+        - name: x-tenant-id
+          in: header
+          description: The unique identifier for the tenant (required if not provided via auth token).
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: A paginated list of events.
+          headers:
+            X-Total-Count:
+              description: Total number of records matching the filter criteria across all pages.
+              schema:
+                type: integer
+            Access-Control-Expose-Headers:
+              description: Informs the browser that X-Total-Count is safe to access via scripts.
+              schema:
+                type: string        
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Event'
+                  pagination:
+                    type: object
+                    properties:
+                      totalItems:
+                        type: integer
+                      totalPages:
+                        type: integer
+                      currentPage:
+                        type: integer
+                      pageSize:
+                        type: integer
+                      rangeUsed:
+                        type: object
+                        properties:
+                          start:
+                            type: string
+                            format: date-time
+                          end:
+                            type: string
+                            format: date-time
+                      query:
+                        type: string
+                        nullable: true
+        '400':
+          description: Bad Request. Occurs on invalid date formats or if endTime is before startTime.
+        '401':
+          description: Unauthorized. Missing or invalid Tenant ID.
+        '404':
+          description: A list of events
+
   /events/check-conflicts:          
     get:
-      summary: Check if a time slot is already booked. Always call this endpoint before creating an event. Return true if we have conflict otherwise false.
+      summary: Verifies time slot availability.
+      description: Returns a boolean indicating whether a time slot conflict exists. Use this to validate availability before attempting to create a new event.
       tags: [Events]
       parameters:
         - in: query
@@ -152,6 +271,18 @@ paths:
           required: true
           schema:
             type: string
+            format: date-time  
+          required: true
+          name: endTime
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: endTime
+          required: true
+          schema:
+            type: string
+            format: date-time
           required: true
           name: endTime
           required: true
@@ -298,3 +429,82 @@ paths:
       responses:
         200:
           description: Current status of the sync job
+
+paths:
+  /wallet/check-balance:
+    get:
+      summary: Pre-flight balance check
+      description: Verifies if a tenant has enough tokens (RESERVE_AMOUNT) to start an AI interaction.
+      tags:
+        - Wallet
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: tenantId
+          required: true
+          schema:
+            type: string
+          description: Unique ID of the tenant
+      responses:
+        200:
+          description: Balance check result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  allowed:
+                    type: boolean
+                    example: true
+                  balance:
+                    type: integer
+                    example: 8500
+                  error:
+                    type: string
+                    nullable: true
+        401:
+          description: Unauthorized - Missing or invalid token
+
+  /wallet/deplete:
+    post:
+      summary: Track and deduct token usage
+      description: Called after AI interaction to deduct actual tokens used from the wallet.
+      tags:
+        - Wallet
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - tenantId
+                - total_tokens
+              properties:
+                tenantId:
+                  type: string
+                  example: "12345678"
+                total_tokens:
+                  type: integer
+                  example: 450
+      responses:
+        200:
+          description: Tokens deducted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  newBalance:
+                    type: integer
+                    example: 8050
+        400:
+          description: Invalid input data
+        500:
+          description: Internal server error

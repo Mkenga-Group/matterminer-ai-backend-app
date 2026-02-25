@@ -15,6 +15,6 @@ exports.getDashboardStats = async (req, res) => {
 
         res.json(report); 
     } catch (error) {
-	res.status(500).json({ error: 'Failed to generate health report' });
+	res.status(500).json({ success: false, error: 'Failed to generate health report' });
     }
 };
