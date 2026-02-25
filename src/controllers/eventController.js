@@ -6,7 +6,7 @@ const { Event } = require('../models');
 const { getTokens, getValidTokens } = require('../services/redisService');
 
 const googleService = require('../services/googleCalendarService');
-const connectRabbitMQ = require('../utils/rabbitMQ');
+const { connectRabbitMQ } = require('../utils/rabbitMQ');
 
 exports.createEvent = async (req, res) => {
   try {
@@ -84,9 +84,11 @@ exports.getEvents = async (req, res) => {
     // 3. Calculate Metadata
     const totalPages = Math.ceil(count / limit);
 
-    res.json({
-      success: true,
-      message: "Event list",
+    const _status = rows.length > 0 ? 200 : 404;	  
+
+    res.status(_status).json({
+      success: rows.length > 0 ? true : false,
+      message: rows.length > 0 ? "Event list" : "No event found",
       data: rows,
       pagination: {
         totalItems: count,

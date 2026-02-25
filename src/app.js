@@ -48,11 +48,11 @@ if(fs.existsSync(yamlPath)) {
 
 app.use('/calendar', routes);
 
-app.use((req, res) => res.status(404).send("Route not found"));
+app.use((req, res) => res.status(404).send({ status: false, error: 'Route not found' }));
 
 app.use((err, req, res, next) => {
   console.error(err);
-  res.status(500).json({ error: 'Internal Server Error' });
+  res.status(500).json({ status: false, error: 'Internal Server Error' });
 });
 
 // Middleware to capture Correlation ID
