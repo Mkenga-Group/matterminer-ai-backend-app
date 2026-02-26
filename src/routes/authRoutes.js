@@ -13,10 +13,12 @@ router.get('/google', (req, res) => {
        const tenantId = req.query.tenant_id || 'default_tenant';
        const url = getGoogleAuthUrl(tenantId);
 
-       res.redirect(url);
-   } catch (error) { 
-       console.error('Error generating Auth URL:', error.message);
-       res.status(500).json({ error: 'Internal Server Error' });
+       // res.redirect(url);
+       res.json({ success: true, data: url, message: 'Google consent URL' });
+   } catch (error) {
+       const errMsg = error?.message || error.response?.data?.error_description;	   
+       console.error('Error generating Auth URL:', errMsg);
+       res.status(500).json({ success: false, message: 'Google consent has failed', details: errMsg });
    }
 });
 
@@ -25,7 +27,7 @@ router.get('/oauth2callback', async (req, res) => {
   const tenantId = req.query.state || 'default_tenant';
 	
   if(!code) {
-     return res.status(400).json({ error: 'No code provided' });
+     return res.status(400).json({ success: false, message: 'No code provided' });
   }
 
   try { 
@@ -50,24 +52,28 @@ router.get('/oauth2callback', async (req, res) => {
 
       res.json({ 
           success: true,
-	  jwtToken, 
-	  tenantId  
+	  message: 'tenant authentication',    
+	  data: {
+	    accessToken: jwtToken, 
+	    tenantId 
+	  }
       });
    } catch (error) {
+      const errMsg = error?.message || error.response?.data?.error_description;	   
       if (error.response && error.response.data) {
 	  console.error('Google OAuth Error Response:', error.response.data);
       } else {
 	  console.error('OAuth Callback Error:', error.message);
       }
 
-      res.status(500).json({ error: 'Failed to get Google tokens', details: error.response?.data?.error_description || error.message });
+      res.status(500).json({ success: false, error: 'Failed to get Google tokens', details: errMsg });
    }
 });
 
 router.get('/hasGrantToken', async(req, res) => {
   const tenantId = req.query.tenant_id || 'default_tenant';
   if(!tenantId) {
-     return res.status(400).json({ error: 'No tenantId provided' });
+     return res.status(400).json({ success: false, message: 'No tenantId provided' });
   }
 });
 
@@ -75,7 +81,7 @@ router.get('/accessToken', async (req, res) => {
   const tenantId = req.query.tenant_id;
 
   if(!tenantId) {
-     return res.status(400).json({ error: 'No tenantId provided' });
+     return res.status(400).json({ success: false, message: 'No tenantId provided' });
   }
 
   try {
@@ -98,11 +104,13 @@ router.get('/accessToken', async (req, res) => {
           message: `Access token is valid and session is initialized. You may now proceed to the user's original request.`
       });
    } catch (error) {
+      const errMsg = error?.message || error.response?.data?.error_description;
+
       if (error.response && error.response.data) {
           console.error('Access Token Error Response:', error.response.data || error?.message) ;
       }
 
-      res.status(500).json({ error: 'Failed to get access token', details: error.response?.data?.error_description || error.message });
+      res.status(500).json({ success: false, message: 'Failed to get access token', details: errMsg });
    }
 });
 
@@ -112,7 +120,8 @@ router.post('/logout', async (req, res) => {
         await revokeTokens(tenantId);
         res.json({ message: "Logged out successfully and tokens cleared." });
     } catch (error) {
-        res.status(500).json({ error: "Logout failed" });
+	const errMsg = error?.message || error.response?.data?.error_description;    
+        res.status(500).json({ success: false, message: "Logout failed", details: errMsg });
     }
 });
 

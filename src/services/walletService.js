@@ -1,4 +1,4 @@
-const Wallet = require('../models/Wallet');
+const { Wallet } = require('../models');
 const sequelize = require('../config/database');
 /**
  * Deducts tokens from a tenant's wallet
@@ -28,7 +28,6 @@ async function depleteTokens(tenantId, totalTokens) {
         message: 'Transaction failed: Balance is already zero.' 
       };
     }
-
     return { success: true, affectedRows: metadata };
   } catch (error) {
     console.error('Wallet depletion failure:', error);
@@ -54,7 +53,7 @@ async function hasSufficientBalance(tenantId) {
         };
     }
     
-    return { allowed: true, balance: wallet.balance };
+    return { success: true, allowed: true, balance: wallet.balance, message: 'Tenant wallet balance' };
 }
 
 module.exports = { depleteTokens, hasSufficientBalance };

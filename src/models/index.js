@@ -8,4 +8,7 @@ const Wallet = require('./Wallet');
 Event.hasMany(AuditLog, { foreignKey: 'eventId', as: 'auditLogs' });
 AuditLog.belongsTo(Event, { foreignKey: 'eventId', as: 'event' });
 
+Wallet.hasMany(AuditLog, { foreignKey: 'tenantId', as: 'auditLogs' });
+AuditLog.belongsTo(Wallet, { foreignKey: 'tenantId', as: 'wallet' });
+
 module.exports = { sequelize, Event, AuditLog, Integration, Wallet };

@@ -8,22 +8,31 @@ exports.trackUsage = async (req, res) => {
 
     if (!tenantId) {
        console.error("Missing Tenant ID in request");
-       return res.status(401).json({ success: false, error: 'Unauthorized: No Tenant ID' });
+       return res.status(401).json({ success: false, message: 'Unauthorized: No Tenant ID' });
     }
 
     if (!tenantId || !total_tokens) {
-      return res.status(400).json({ success: false, error: 'Missing tenantId or usage data' });
+      return res.status(400).json({ success: false, message: 'Missing tenantId or usage data' });
     }
 
     const result = await walletService.depleteTokens(tenantId, total_tokens);
-    
+    //-console.log('CCCCCCCCCCCCCCCCCCCCCCCCCCC ',result);
+    if(!result.status){
+      res.status(404).json({
+          success: true,
+          message: result.message
+      });
+      return;	    
+    }
     res.json({
 	success: true,    
-	newBalance: result.newBalance
+	balance: result.balance,
+	message: result.message    
     });
   } catch (err) {
-    console.error('track usage ', err);	  
-    res.status(500).json({ success: false, error: 'internal error' });
+    const errMsg = err?.message || err.response?.data?.error_description;	  
+    console.error('track usage ', errMsg);	  
+    res.status(500).json({ success: false, message: 'Failed trackUsage' });
   }
 };
 
@@ -41,7 +50,8 @@ exports.checkSufficientBalance = async (req, res) => {
 
    res.json(result);
   } catch (err) {
-    console.error('check sufficient bal ',err);	  
-    res.status(500).json({ success: false, error: 'Failed to process token usage' });
+    const errMsg = err?.message || err.response?.data?.error_description;	  
+    console.error('check sufficient bal ',errMsg);	  
+    res.status(500).json({ success: false, message: 'Failed to process token usage: checkSufficientBalance' });
   }
 };

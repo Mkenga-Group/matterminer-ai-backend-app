@@ -18,8 +18,8 @@ Wallet.init({
     unique: true
   },
   balance: {
-    type: DataTypes.INTEGER,
-    defaultValue: 100,
+    type: DataTypes.DECIMAL(15, 6),
+    defaultValue: 100.000000,
     allowNull: false
   },
   tier: {
@@ -39,7 +39,6 @@ Wallet.init({
   indexes: [
     { fields: ['tenantId'] },
     { fields: ['status'] },
-    { fields: ['providerEventId'] },
   ],
 });
 

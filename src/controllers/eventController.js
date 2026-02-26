@@ -14,7 +14,7 @@ exports.createEvent = async (req, res) => {
     
     if (!tenantId) {
        console.error("Missing Tenant ID in request");
-       return res.status(401).json({ success: false, rror: 'Unauthorized: No Tenant ID' });
+       return res.status(401).json({ success: false, message: 'Unauthorized: No Tenant ID' });
     }
 
     const eventData = { ...req.body, tenantId, provider: 'google' };
@@ -22,7 +22,7 @@ exports.createEvent = async (req, res) => {
     const googleToken = await getValidTokens(tenantId);
 
     if(!googleToken){
-       return res.status(400).json({ success: false, error: 'No token found' });
+       return res.status(400).json({ success: false, message: 'No token found' });
     }	 
 
     const event = await Event.create(eventData);
@@ -36,8 +36,9 @@ exports.createEvent = async (req, res) => {
     }	  
     res.status(201).json({ success: true, message: "Event created successfully", data: event });
   }catch(error){
-    console.error(error);
-    res.status(500).json({ success: false, error: 'Failed to create event' });
+    const errMsg = error?.message || error.response?.data?.error_description;	  
+    console.error(errMsg);
+    res.status(500).json({ success: false, message: 'Failed to create event' });
   }
 };
 
@@ -47,14 +48,14 @@ exports.getAllEvents = async (req, res) => {
 
     if (!tenantId) {
         console.error("Missing Tenant ID in request");
-        return res.status(401).json({ success: false, error: 'Unauthorized: No Tenant ID' });
+        return res.status(401).json({ success: false, message: 'Unauthorized: No Tenant ID' });
     }
 
     const events = await Event.findAll({ where: { tenantId } });	  
     res.json({ success: true, message: "Event list", data: events });
   } catch (error) {
     console.error('Error getEvents', error);
-    res.status(500).json({ success: false, error: 'Failed to fetch events' });
+    res.status(500).json({ success: false, message: 'Failed to fetch events' });
   }
 };
 
@@ -64,7 +65,7 @@ exports.getEvents = async (req, res) => {
 
     if (!tenantId) {
       console.error("Missing Tenant ID in request");
-      return res.status(401).json({ success: false, error: 'Unauthorized: No Tenant ID' });
+      return res.status(401).json({ success: false, message: 'Unauthorized: No Tenant ID' });
     }
 
     // 1. Extract and Parse Pagination Parameters
@@ -100,8 +101,9 @@ exports.getEvents = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Error getEvents', error);
-    res.status(500).json({ success: false, error: 'Failed to fetch events' });
+    const errMsg = error?.message || error.response?.data?.error_description;	  
+    console.error('Error getEvents', errMsg);
+    res.status(500).json({ success: false, message: 'Failed to fetch events' });
   }
 };
 
@@ -112,15 +114,16 @@ exports.getEventById = async (req, res) => {
 
     if (!tenantId) {
        console.error("Missing Tenant ID in request");
-       return res.status(401).json({ success: false, error: 'Unauthorized: No Tenant ID' });
+       return res.status(401).json({ success: false, message: 'Unauthorized: No Tenant ID' });
     }
 
     const event = await Event.findOne({ where: { id: event_id, tenantId } });
-    if (!event) return res.status(404).json({ success: false, error: 'Event not found' });
+    if (!event) return res.status(404).json({ success: false, message: 'Event not found' });
     res.json({ sucess: true, message: "Event details", data: event } );
   } catch (error) {
-    console.error('Error getEventById', error);
-    res.status(500).json({ success: false, error: 'Failed to fetch event' });
+    const errMsg = error?.message || error.response?.data?.error_description;	  
+    console.error('Error getEventById', errMsg);
+    res.status(500).json({ success: false, message: 'Failed to fetch event' });
   }
 };
 
@@ -128,7 +131,7 @@ exports.getEventsByRange = async (req, res) => {
   try {
     const tenantId = req.user?.tenantId || req.headers['x-tenant-id'];
     if (!tenantId) {
-        return res.status(401).json({ success: false, error: 'Unauthorized: No Tenant ID' });
+        return res.status(401).json({ success: false, message: 'Unauthorized: No Tenant ID' });
     }
 
     // 1. Extract Params including 'search'
@@ -148,10 +151,10 @@ exports.getEventsByRange = async (req, res) => {
 
     // 3. Validation
     if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-        return res.status(400).json({ success: false, error: 'Invalid date format' });
+        return res.status(400).json({ success: false, message: 'Invalid date format' });
     }
     if (end <= start) {
-        return res.status(400).json({ success: false, error: 'endTime must be after startTime' });
+        return res.status(400).json({ success: false, message: 'endTime must be after startTime' });
     }
 
     // 4. Construct Where Clause
@@ -202,8 +205,9 @@ exports.getEventsByRange = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error Fetch Events:', error);
-    res.status(500).json({ success: false, error: 'Internal server error' });
+    const errMsg = error?.message || error.response?.data?.error_description;	  
+    console.error('Error Fetch Events:', errMsg);
+    res.status(500).json({ success: false, message: 'Failed events range including search' });
   }
 };
 
@@ -213,7 +217,7 @@ exports.checkConflicts = async (req, res) => {
 
     if (!tenantId) {
         console.error("Missing Tenant ID in request");
-	return res.status(401).json({ success: false, error: 'Unauthorized: No Tenant ID' });
+	return res.status(401).json({ success: false, message: 'Unauthorized: No Tenant ID' });
     }
 
     const { startTime, endTime } = req.query; 
@@ -222,7 +226,7 @@ exports.checkConflicts = async (req, res) => {
     const end = new Date(endTime);
 
     if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-	return res.status(400).json({ success: false, error: 'Invalid date format provided' });
+	return res.status(400).json({ success: false, message: 'Invalid date format provided' });
     }
 
     const conflicts = await Event.findAll({
@@ -240,8 +244,9 @@ exports.checkConflicts = async (req, res) => {
       conflicts: conflicts
     });
   } catch (error) {
-    console.error('Conflict Check Error:', error);
-    res.status(500).json({ success: false, error: 'Failed to check conflicts' });
+    const errMsg = error?.message || error.response?.data?.error_description;	  
+    console.error('Conflict Check Error:', errMsg);
+    res.status(500).json({ success: false, message: 'Failed to check conflicts' });
   }
 };
 
@@ -257,7 +262,7 @@ exports.updateEvent = async (req, res) => {
     }
 	  
     const event = await Event.findOne({ where: { id:  event_id, tenantId } });
-    if (!event) return res.status(404).json({ success: false, error: 'Event not found' });
+    if (!event) return res.status(404).json({ success: false, message: 'Event not found' });
 
     await event.update(req.body);
 
@@ -268,8 +273,9 @@ exports.updateEvent = async (req, res) => {
 
     res.json({ success: true, message: 'Event has been updated', data: event } );
   } catch (error) {
-    console.error('Error update Event', error);
-    res.status(500).json({ success: false, error: 'Failed to update event' });
+    const errMsg = error?.message || error.response?.data?.error_description;	  
+    console.error('Error update Event', errMsg);
+    res.status(500).json({ success: false, message: 'Failed to update event' });
   }
 };
 
@@ -282,11 +288,11 @@ exports.deleteEvent = async (req, res) => {
     const googleToken = await getValidTokens(tenantId);
 
     if(!googleToken){
-       return res.status(400).json({ success: false, error: 'No token found' });
+       return res.status(400).json({ success: false, message: 'No token found' });
     }
 	  
     const event = await Event.findOne({ where: { id: event_id, tenantId } });
-    if (!event) return res.status(404).json({ success: false, error: 'Event not found' });
+    if (!event) return res.status(404).json({ success: false, message: 'Event not found' });
 
     // Delete Google event first (or concurrently)
     if(event.google_event_id) {
@@ -296,8 +302,9 @@ exports.deleteEvent = async (req, res) => {
     await event.destroy();
     res.json({ success: true, message: 'Event deleted' });
   } catch (error) {
-    console.error('Error deleteEvent', error);
-    res.status(500).json({ success: false, error: 'Failed to delete event' });
+    const errMsg = error?.message || error.response?.data?.error_description;	  
+    console.error('Error deleteEvent', errMsg);
+    res.status(500).json({ success: false, message: 'Failed to delete event' });
   }
 };
 
@@ -308,7 +315,7 @@ exports.syncAllEvents = async (req, res) => {
      const channel = await connectRabbitMQ();
      
      if (!channel) {
-	 return res.status(500).json({ success: false, error: 'Messaging service unavailable' });
+	 return res.status(500).json({ success: false, message: 'Messaging service unavailable' });
      }
 
      const payload = {
@@ -325,8 +332,9 @@ exports.syncAllEvents = async (req, res) => {
          message: 'Syncing your Google Calendar in the background. Please refresh in a moment.' 
      });
     } catch (error) {
-	 console.error('Sync Error:', error);
-	 res.status(500).json({ success: false, error: 'Failed to initiate sync' });
+	 const errMsg = error?.message || error.response?.data?.error_description;   
+	 console.error('Sync Error:', errMsg);
+	 res.status(500).json({ success: false, message: 'Failed to initiate sync' });
     }
 };
 

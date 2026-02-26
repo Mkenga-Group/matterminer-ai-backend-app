@@ -13,7 +13,7 @@ router.use('/wallet', walletRoutes);
 
 // Placeholder for routes
 router.get('/health', (req,res) => {
-  res.json({ message: 'Calendar Service API | wallet API' });
+  res.json({ success: true, message: 'Calendar Service API | wallet API' });
 });
 
 module.exports = router;
