@@ -3,6 +3,7 @@ const router = express.Router();
 const { getAuthUrl: getGoogleAuthUrl, getTokens: getGoogleTokens } = require('../services/googleOAuth');
 const { storeTokens, revokeTokens } = require('../services/redisService');
 const { registerCalendarWatch } = require('../services/googleWebhookService');
+const walletService = require('../services/wallet.service');
 
 const jwt = require('jsonwebtoken');
 
@@ -49,6 +50,9 @@ router.get('/oauth2callback', async (req, res) => {
 	process.env.JWT_SECRET, 
         { expiresIn: '1h' }
       );
+
+      // Create tenant wallet
+      await walletService.ensureWalletExists(tenantId);
 
       res.json({ 
           success: true,

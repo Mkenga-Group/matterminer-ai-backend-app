@@ -55,5 +55,19 @@ async function hasSufficientBalance(tenantId) {
     
     return { success: true, allowed: true, balance: wallet.balance, message: 'Tenant wallet balance' };
 }
+/**
+ * Idempotent method to ensure a tenant has a wallet.
+ * Called during authentication or on-boarding.
+ */
+async function ensureWalletExists(tenantId) {
+    const [wallet, created] = await Wallet.findOrCreate({
+        where: { tenantId },
+        defaults: {
+            balance: 10000,
+            status: 'active'
+        }
+    });
+    return { wallet, created };
+}
 
-module.exports = { depleteTokens, hasSufficientBalance };
+module.exports = { depleteTokens, hasSufficientBalance, ensureWalletExists };
