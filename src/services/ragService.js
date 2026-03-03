@@ -17,7 +17,7 @@ async function queryKnowledge(query, namespace, tenantId) {
         vector: queryVector,
         topK: 3,
         includeMetadata: true,
-        filter: { tenantId: { "$eq": tenantId } } 
+        filter: { "$in" : ["SYSTEM_GLOBAL", tenantId] } 
     });
 
     return searchResponse.matches.map(match => match.metadata.text).join("\n---\n");

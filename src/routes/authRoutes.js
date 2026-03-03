@@ -3,7 +3,7 @@ const router = express.Router();
 const { getAuthUrl: getGoogleAuthUrl, getTokens: getGoogleTokens } = require('../services/googleOAuth');
 const { storeTokens, revokeTokens } = require('../services/redisService');
 const { registerCalendarWatch } = require('../services/googleWebhookService');
-const walletService = require('../services/wallet.service');
+const walletService = require('../services/walletService');
 
 const jwt = require('jsonwebtoken');
 

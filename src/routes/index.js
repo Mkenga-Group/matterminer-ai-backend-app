@@ -4,10 +4,13 @@ const router = express.Router();
 const eventRoutes = require('./eventRoutes');
 const authRoutes = require('./authRoutes');
 const webhookRoutes = require('./webhookRoutes');
-const walletRoutes = require('./walletRoutes');;
+const walletRoutes = require('./walletRoutes');
+const ragRoutes = require('./ragRoutes');
+
 
 router.use('/events', eventRoutes);
 router.use('/auth', authRoutes);
+router.use('/rag/lookup', ragRoutes);
 router.use('/webhook',webhookRoutes);
 router.use('/wallet', walletRoutes);
 
