@@ -12,10 +12,14 @@ AuditLog.init({
   },
   eventId: {
     type: DataTypes.UUID,
-    allowNull: false,
+    allowNull: true,
+  },
+  sessionId: {
+    type: DataTypes.UUID,
+    allowNull: true,
   },
   tenantId: {
-    type: DataTypes.UUID,
+    type: DataTypes.STRING, // Changed to match ChatSession and other models
     allowNull: false,
   },
   action: {

@@ -6,16 +6,17 @@ const authRoutes = require('./authRoutes');
 const webhookRoutes = require('./webhookRoutes');
 const walletRoutes = require('./walletRoutes');
 const ragRoutes = require('./ragRoutes');
-
+const chatSessionRoutes = require('./chatSessionRoutes');
 
 router.use('/events', eventRoutes);
 router.use('/auth', authRoutes);
 router.use('/rag/lookup', ragRoutes);
-router.use('/webhook',webhookRoutes);
+router.use('/webhook', webhookRoutes);
 router.use('/wallet', walletRoutes);
+router.use('/chat', chatSessionRoutes);
 
 // Placeholder for routes
-router.get('/health', (req,res) => {
+router.get('/health', (req, res) => {
   res.json({ success: true, message: 'Calendar Service API | wallet API' });
 });
 
