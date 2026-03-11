@@ -1,9 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const { getAuthUrl: getGoogleAuthUrl, getTokens: getGoogleTokens } = require('../services/googleOAuth');
-const { storeTokens, revokeTokens, checkTokenStatus } = require('../services/redisService');
+const { storeTokens, revokeTokens, checkTokenStatus, getValidTokens } = require('../services/redisService');
 const { registerCalendarWatch } = require('../services/googleWebhookService');
 const walletService = require('../services/walletService');
+const auth = require('../middleware/auth');
 
 const jwt = require('jsonwebtoken');
 
@@ -73,10 +74,14 @@ router.get('/oauth2callback', async (req, res) => {
   }
 });
 
-router.get('/hasGrantToken', async (req, res) => {
+router.get('/hasGrantToken', auth, async (req, res) => {
   const tenantId = req.query.tenant_id || 'default_tenant';
 
   try {
+
+    if (!tenantId) {
+      return res.status(400).json({ success: false, message: 'No tenantId provided' });
+    }
     const status = await checkTokenStatus(tenantId);
 
     res.json({
@@ -130,9 +135,45 @@ router.get('/accessToken', async (req, res) => {
   }
 });
 
+router.post('/googleRefreshToken', auth, async (req, res) => {
+  const tenantId = req.body.tenant_id || req.query.tenant_id;
+
+  if (!tenantId) {
+    return res.status(400).json({ success: false, message: 'No tenantId provided' });
+  }
+
+  try {
+    const tokens = await getValidTokens(tenantId);
+
+    if (tokens) {
+      res.json({
+        success: true,
+        message: 'Google access token is valid (refreshed if necessary)',
+        tenantId
+      });
+    } else {
+      res.status(401).json({
+        success: false,
+        message: 'No valid refresh token found. User must re-authenticate.'
+      });
+    }
+  } catch (error) {
+    console.error('Error in /googleRefreshToken:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to refresh token for Google Calendar',
+      details: error.message
+    });
+  }
+});
+
 router.post('/logout', async (req, res) => {
   try {
     const tenantId = req.body.tenant_id;
+
+    if (!tenantId) {
+      return res.status(400).json({ success: false, message: 'No tenantId provided' });
+    }
     await revokeTokens(tenantId);
     res.json({ message: "Logged out successfully and tokens cleared." });
   } catch (error) {
