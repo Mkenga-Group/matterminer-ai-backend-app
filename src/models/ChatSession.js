@@ -1,53 +1,57 @@
 const { DataTypes, Model } = require('sequelize');
 const sequelize = require('../config/database');
 
-class ChatSession extends Model {}
+class ChatSession extends Model { }
 
 ChatSession.init({
   id: {
     type: DataTypes.UUID,
     defaultValue: DataTypes.UUIDV4,
     primaryKey: true,
-    allowNull: false
   },
   tenantId: {
-    type: DataTypes.STRING(255),
-    allowNull: false
+    type: DataTypes.STRING,
+    allowNull: false,
   },
   client_number: {
-    type: DataTypes.STRING(255),
-    allowNull: true
+    type: DataTypes.STRING,
+    allowNull: true,
   },
   client_type: {
-    type: DataTypes.STRING(255),
-    allowNull: true
+    type: DataTypes.STRING,
+    allowNull: true,
   },
   first_name: {
-    type: DataTypes.STRING(255),
-    allowNull: true
+    type: DataTypes.STRING,
+    allowNull: true,
   },
   last_name: {
-    type: DataTypes.STRING(255),
-    allowNull: true
+    type: DataTypes.STRING,
+    allowNull: true,
   },
   email: {
-    type: DataTypes.STRING(255),
-    allowNull: true
+    type: DataTypes.STRING,
+    allowNull: true,
   },
   metadata: {
     type: DataTypes.JSON,
-    allowNull: true
+    allowNull: true,
+    defaultValue: {
+      chat_history: [],
+      event_draft: {},
+      active_workflow: null // 'client' | 'calendar'
+    },
   }
 }, {
   sequelize,
   modelName: 'ChatSession',
-  tableName: 'chatsessions',
+  tableName: 'chatsessions', // As requested
   timestamps: true,
   indexes: [
     { fields: ['tenantId'] },
     { fields: ['client_number'] },
     { fields: ['email'] }
-  ]
+  ],
 });
 
 module.exports = ChatSession;
