@@ -136,10 +136,11 @@ router.get('/accessToken', async (req, res) => {
 });
 
 router.post('/googleRefreshToken', auth, async (req, res) => {
-  const tenantId = req.body.tenant_id || req.query.tenant_id;
+  // Extract tenantId from JWT (provided by auth middleware) or fallback to body/query
+  const tenantId = req.user?.tenantId || req.body.tenant_id || req.query.tenant_id;
 
   if (!tenantId) {
-    return res.status(400).json({ success: false, message: 'No tenantId provided' });
+    return res.status(400).json({ success: false, message: 'No tenantId found in token or request body' });
   }
 
   try {

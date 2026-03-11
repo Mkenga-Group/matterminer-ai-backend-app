@@ -360,6 +360,40 @@ paths:
         500:
           description: Failed to exchange tokens or store session
 
+  /auth/googleRefreshToken:
+    post:
+      summary: Silently renew Google Calendar access token
+      description: |
+        Uses the stored refresh token to get a new access token from Google. 
+        Requires a valid JWT token in the Authorization header.
+      tags: [Auth]
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                tenant_id:
+                  type: string
+                  description: Optional if provided in JWT
+      responses:
+        200:
+          description: Token successfully refreshed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  message: { type: string }
+                  tenantId: { type: string }
+        401:
+          description: No valid refresh token found or JWT missing/invalid
+        500:
+          description: Server error during refresh flow
+
   /webhook/register:
     post:
       summary: Start watching a Google Calendar
