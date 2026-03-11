@@ -1,10 +1,10 @@
 const { google } = require('googleapis');
 const { v4: uuidv4 } = require('uuid');
 const { Integration } = require('../models');
-const { getTokens } = require('./redisService');
+const { getValidTokens } = require('./redisService');
 
 exports.registerCalendarWatch = async (tenantId) => {
-  const tokens = await getTokens(tenantId);
+  const tokens = await getValidTokens(tenantId);
   const oauth2Client = new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
     process.env.GOOGLE_CLIENT_SECRET,

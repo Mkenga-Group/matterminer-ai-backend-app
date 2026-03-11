@@ -1,5 +1,5 @@
 const { google } = require('googleapis');
-const { getTokens } = require('./redisService'); // Our Redis helper
+const { getValidTokens } = require('./redisService'); // Our Redis helper
 
 const { Integration } = require('../models');
 
@@ -14,39 +14,38 @@ const createGoogleClient = (tokens) => {
 };
 
 exports.syncLocalToGoogle = async (tenantId, eventData, googleEventId = null) => {
-   const tokens = await getTokens(tenantId);
-   console.log('TTTTTTTTTTTTTTTVVVVVVVVVVVVVVVVVVVVVVVVVVVNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN ', tokens,    tenantId);	
+   const tokens = await getValidTokens(tenantId);
    if (!tokens) return null; // Or handle re-auth logic
 
-      const calendar = createGoogleClient(tokens);
-           	  
-      const gEvent = {
-         summary: eventData.title,
-	 description: eventData.description,
-         start: { dateTime: new Date(eventData.startTime).toISOString() },
-         end: { dateTime: new Date(eventData.endTime).toISOString() },
-      };
+   const calendar = createGoogleClient(tokens);
 
-      if (googleEventId) {
-	 // Update existing	      
-	 const response = await calendar.events.update({
-	    calendarId: 'primary',
-	    eventId: googleEventId,
-            resource: gEvent,
-	 });
-         return response.data.id;
-       } else {
-	 // Create new		        
-	 const response = await calendar.events.insert({
-	     calendarId: 'primary',
-	     resource: gEvent,
-	 });
-	 return response.data.id;
-       }
+   const gEvent = {
+      summary: eventData.title,
+      description: eventData.description,
+      start: { dateTime: new Date(eventData.startTime).toISOString() },
+      end: { dateTime: new Date(eventData.endTime).toISOString() },
+   };
+
+   if (googleEventId) {
+      // Update existing	      
+      const response = await calendar.events.update({
+         calendarId: 'primary',
+         eventId: googleEventId,
+         resource: gEvent,
+      });
+      return response.data.id;
+   } else {
+      // Create new		        
+      const response = await calendar.events.insert({
+         calendarId: 'primary',
+         resource: gEvent,
+      });
+      return response.data.id;
+   }
 };
 
 exports.deleteGoogleEvent = async (tenantId, googleEventId) => {
-   const tokens = await getTokens(tenantId);
+   const tokens = await getValidTokens(tenantId);
    if (!tokens || !googleEventId) return;
 
    const calendar = createGoogleClient(tokens);
@@ -54,17 +53,17 @@ exports.deleteGoogleEvent = async (tenantId, googleEventId) => {
 };
 
 exports.fetchAllGoogleEvents = async (tenantId) => {
-   const tokens = await getTokens(tenantId);
+   const tokens = await getValidTokens(tenantId);
    const calendar = createGoogleClient(tokens);
    let allEvents = [];
    let pageToken = null;
 
    do {
       const res = await calendar.events.list({
-	 calendarId: 'primary',
-	 pageToken: pageToken,
-	 singleEvents: true,
-	 maxResults: 250, // Optimal batch size
+         calendarId: 'primary',
+         pageToken: pageToken,
+         singleEvents: true,
+         maxResults: 250, // Optimal batch size
       });
 
       allEvents.push(...res.data.items);
@@ -76,7 +75,7 @@ exports.fetchAllGoogleEvents = async (tenantId) => {
 
 exports.fetchChangedEvents = async (tenantId) => {
    const integration = await Integration.findOne({ where: { tenantId, provider: 'google' } });
-   const tokens = await getTokens(tenantId);
+   const tokens = await getValidTokens(tenantId);
    const calendar = createGoogleClient(tokens);
 
    let allChanges = [];
@@ -84,43 +83,43 @@ exports.fetchChangedEvents = async (tenantId) => {
    let newSyncToken = null;
 
    try {
-       do {
-	  const params = {
-	     calendarId: 'primary',
-	     pageToken: pageToken,
-	     maxResults: 250,
-	  };
+      do {
+         const params = {
+            calendarId: 'primary',
+            pageToken: pageToken,
+            maxResults: 250,
+         };
 
-	  // If we have a syncToken, use it to get only changes
-	  if (integration.syncToken) {
-	      params.syncToken = integration.syncToken;
-	  } else {
-	      // First time sync: list events from a reasonable past date
-	      params.timeMin = new Date().toISOString(); 
-	  }
+         // If we have a syncToken, use it to get only changes
+         if (integration.syncToken) {
+            params.syncToken = integration.syncToken;
+         } else {
+            // First time sync: list events from a reasonable past date
+            params.timeMin = new Date().toISOString();
+         }
 
-          const res = await calendar.events.list(params);
-				                
-	  allChanges.push(...res.data.items);
-	  pageToken = res.data.nextPageToken;
-				                
-	  // The final page contains the nextSyncToken
-	  if (res.data.nextSyncToken) {
-	      newSyncToken = res.data.nextSyncToken;
-	  }
-       } while (pageToken);
+         const res = await calendar.events.list(params);
 
-       // Update the database with the new token for the next run
-       await integration.update({ syncToken: newSyncToken });
+         allChanges.push(...res.data.items);
+         pageToken = res.data.nextPageToken;
 
-       return allChanges;
-    } catch (error) {
-       // If syncToken is invalid (expired), we must clear it and do a full sync
-       if (error.code === 410) {
-	   console.log('Sync token expired. Clearing and performing full reset.');
-	   await integration.update({ syncToken: null });
-	   return this.fetchChangedEvents(tenantId);
-       }
-       throw error;
-    }
+         // The final page contains the nextSyncToken
+         if (res.data.nextSyncToken) {
+            newSyncToken = res.data.nextSyncToken;
+         }
+      } while (pageToken);
+
+      // Update the database with the new token for the next run
+      await integration.update({ syncToken: newSyncToken });
+
+      return allChanges;
+   } catch (error) {
+      // If syncToken is invalid (expired), we must clear it and do a full sync
+      if (error.code === 410) {
+         console.log('Sync token expired. Clearing and performing full reset.');
+         await integration.update({ syncToken: null });
+         return this.fetchChangedEvents(tenantId);
+      }
+      throw error;
+   }
 };

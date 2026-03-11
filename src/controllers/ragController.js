@@ -1,9 +1,24 @@
 const { Pinecone } = require('@pinecone-database/pinecone');
 const { OpenAIEmbeddings } = require("@langchain/openai");
 
-const pc = new Pinecone({ apiKey: process.env.PINECONE_API_KEY });
-const index = pc.index("nuru-knowledge-base");
-const embeddings = new OpenAIEmbeddings({ modelName: "text-embedding-3-small" });
+let pc, index, embeddings;
+
+function getPineconeIndex() {
+    if (!pc) {
+        if (!process.env.PINECONE_API_KEY) throw new Error('PINECONE_API_KEY is not defined');
+        pc = new Pinecone({ apiKey: process.env.PINECONE_API_KEY });
+        index = pc.index("nuru-knowledge-base");
+    }
+    return index;
+}
+
+function getEmbeddings() {
+    if (!embeddings) {
+        if (!process.env.OPENAI_API_KEY) throw new Error('OPENAI_API_KEY is not defined');
+        embeddings = new OpenAIEmbeddings({ modelName: "text-embedding-3-small" });
+    }
+    return embeddings;
+}
 
 /**
  * Serves semantic search results to the Python AI Agent
@@ -16,9 +31,12 @@ exports.lookupProtocol = async (req, res) => {
             return res.status(400).json({ error: "Missing query or tenantId" });
         }
 
-        const queryVector = await embeddings.embedQuery(query);
+        const currentEmbeddings = getEmbeddings();
+        const currentIndex = getPineconeIndex();
 
-        const searchResponse = await index.namespace("workflow_protocols").query({
+        const queryVector = await currentEmbeddings.embedQuery(query);
+
+        const searchResponse = await currentIndex.namespace("workflow_protocols").query({
             vector: queryVector,
             topK: 3,
             includeMetadata: true,
@@ -32,8 +50,8 @@ exports.lookupProtocol = async (req, res) => {
             .map(match => `[Protocol: ${match.metadata.category}] ${match.metadata.text}`)
             .join("\n---\n");
 
-        res.json({ 
-            success: true, 
+        res.json({
+            success: true,
             context: context || "No relevant protocols found for this query."
         });
 

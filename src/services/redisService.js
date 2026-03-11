@@ -5,22 +5,22 @@ const { refreshAccessToken } = require('../services/googleOAuth');
 
 /** 
  * Initialize client
- */ 
+ */
 const client = redis.createClient({
-   password: process.env.REDIS_PASS,
-   socket: {	
-      host: process.env.REDIS_HOST,
-      password: process.env.REDIS_PASS
-   }
+    password: process.env.REDIS_PASS,
+    socket: {
+        host: process.env.REDIS_HOST,
+        password: process.env.REDIS_PASS
+    }
 });
 
 client.on('error', (err) => console.error('Redis Client Error', err));
 
 /** 
  * Connect to Redis
- */ 
+ */
 (async () => {
-   if (!client.isOpen) await client.connect();
+    if (!client.isOpen) await client.connect();
 })();
 
 /**
@@ -29,45 +29,44 @@ client.on('error', (err) => console.error('Redis Client Error', err));
  * @param {object} tokens - The tokens object from Google
  */
 async function storeTokens(tenantId, tokens) {
-   const accessKey = `tenant:${tenantId}:google_tokens`;
-   const refreshKey = `tenant:${tenantId}:refresh_token`;
-   // Google tokens usually contain 'expiry_date' (a timestamp in ms)
-   // We set Redis to expire 1 minute before the actual token expires
-   // If no expiry provided, default to 1 hour (3600 seconds)
-	              
-   const ttl = tokens.expiry_date 
-      ? Math.floor((tokens.expiry_date - Date.now()) / 1000) - 60 
-      : 3600;
+    const accessKey = `tenant:${tenantId}:google_tokens`;
+    const refreshKey = `tenant:${tenantId}:refresh_token`;
+    // Google tokens usually contain 'expiry_date' (a timestamp in ms)
+    // We set Redis to expire 1 minute before the actual token expires
+    // If no expiry provided, default to 1 hour (3600 seconds)
 
-   // Use a minimum TTL of 0 to avoid Redis errors
-   const safeTTL = Math.max(ttl, 0);
+    const ttl = tokens.expiry_date
+        ? Math.floor((tokens.expiry_date - Date.now()) / 1000) - 60
+        : 3600;
 
-   await client.set(accessKey, JSON.stringify(tokens), { EX: safeTTL });
+    // Use a minimum TTL of 0 to avoid Redis errors
+    const safeTTL = Math.max(ttl, 0);
 
-   if (tokens.refresh_token) {
-      // Store for 30 days or longer
-      await client.set(refreshKey, tokens.refresh_token, { EX: 2592000 }); 
-   }
-	    
-   console.log(`Tokens stored in Redis for tenant: ${tenantId}. Refresh token saved.`);
+    await client.set(accessKey, JSON.stringify(tokens), { EX: safeTTL });
+
+    if (tokens.refresh_token) {
+        // Store for 30 days or longer
+        await client.set(refreshKey, tokens.refresh_token, { EX: 2592000 });
+    }
+
+    console.log(`Tokens stored in Redis for tenant: ${tenantId}. Refresh token saved.`);
 }
 
 /**
  * Retrieves tokens for a specific tenant
  */
 async function getTokens(tenantId) {
-   const key = `tenant:${tenantId}:google_tokens`;
-   console.log('KKKKKKKKKKEEEEEEEEEEEEEEEEEEEEEEEEEYYYYYYYYYYYYYYYYYY ',key);	
-   const data = await client.get(key);
-   return data ? JSON.parse(data) : null;
+    const key = `tenant:${tenantId}:google_tokens`;
+    const data = await client.get(key);
+    return data ? JSON.parse(data) : null;
 }
 
 /**
  * Deletes tokens (useful for logout/disconnect)
  */
 async function deleteTokens(tenantId) {
-   const key = `tenant:${tenantId}:google_tokens`;
-   await client.del(key);
+    const key = `tenant:${tenantId}:google_tokens`;
+    await client.del(key);
 }
 
 /**
@@ -99,7 +98,7 @@ async function getValidTokens(tenantId) {
                 return updatedTokens;
             } catch (error) {
                 console.error("Refresh failed. User must re-authenticate.");
-		await revokeTokens(tenantId);    
+                await revokeTokens(tenantId);
                 return null;
             }
         }
@@ -120,11 +119,31 @@ async function revokeTokens(tenantId) {
             client.del(refreshKey)
         ]);
         console.log(`Successfully revoked all tokens for tenant: ${tenantId}`);
-        return True;
+        return true;
     } catch (err) {
         console.error(`Error revoking tokens for ${tenantId}:`, err);
-        return False;
+        return false;
     }
 }
 
-module.exports = { storeTokens, getTokens, getValidTokens, deleteTokens, revokeTokens };
+/**
+ * Checks if a refresh token exists and if it is valid by attempting a silent refresh if needed.
+ */
+async function checkTokenStatus(tenantId) {
+    const refreshKey = `tenant:${tenantId}:refresh_token`;
+    const refreshToken = await client.get(refreshKey);
+
+    if (!refreshToken) {
+        return { exists: false, valid: false };
+    }
+
+    // Attempt to get valid tokens - this will trigger a refresh if the access token is missing or expired
+    const tokens = await getValidTokens(tenantId);
+
+    return {
+        exists: true,
+        valid: !!tokens
+    };
+}
+
+module.exports = { storeTokens, getTokens, getValidTokens, deleteTokens, revokeTokens, checkTokenStatus };
