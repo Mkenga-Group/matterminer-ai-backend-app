@@ -22,6 +22,10 @@ exports.syncChatSession = async (req, res) => {
             return res.status(400).json({ error: "tenantId is required" });
         }
 
+        if (!threadId) {
+            return res.status(400).json({ error: "threadId is required" });
+        }
+
         // Find existing session or create a new one
         let session = await ChatSession.findOne({ where: { tenantId, threadId } });
         // 1. RECOVER EXISTING STATE (To ensure we don't wipe existing data)
@@ -169,12 +173,16 @@ exports.clearChatSession = async (req, res) => {
         if (!tenantId) {
             return res.status(400).json({ success: false, message: "tenantId is required" });
         }
+
+        if (!threadId) {
+            return res.status(400).json({ success: false, message: "threadId is required" });
+        }
         await ChatSession.destroy({ where: { tenantId, threadId } });
         res.status(200).json({ success: true, message: "Session cleared." });
     } catch (error) {
-        res.status(500).json({ 
+        res.status(500).json({
             error: "Failed to clear session",
-            details: process.env.NODE_ENV === 'production' ? "Internal server error" : error.message 
+            details: process.env.NODE_ENV === 'production' ? "Internal server error" : error.message
         });
     }
 };
@@ -208,34 +216,34 @@ exports.getPendingSessions = async (req, res) => {
         // Map it to a clean tabular format for the frontend UI
         const tableData = pendingSessions.map(session => {
 
-                const workflowType = session.metadata?.active_workflow || 'unknown';
-                let draftTitle = 'Unknown Draft';
+            const workflowType = session.metadata?.active_workflow || 'unknown';
+            let draftTitle = 'Unknown Draft';
 
-                if (workflowType === 'calendar') {
-                    draftTitle = session.metadata.event_draft?.title
-                        ? `Meeting: ${session.metadata.event_draft.title}`
-                        : 'Unscheduled Meeting';
-                } else if (workflowType === 'client') {
-                    draftTitle = session.first_name || session.last_name
-                        ? `Client: ${session.first_name || ''} ${session.last_name || ''}`.trim()
-                        : 'Client: Details Pending';
-                }
+            if (workflowType === 'calendar') {
+                draftTitle = session.metadata.event_draft?.title
+                    ? `Meeting: ${session.metadata.event_draft.title}`
+                    : 'Unscheduled Meeting';
+            } else if (workflowType === 'client') {
+                draftTitle = session.first_name || session.last_name
+                    ? `Client: ${session.first_name || ''} ${session.last_name || ''}`.trim()
+                    : 'Client: Details Pending';
+            }
 
-                return {
-                    threadId: session.threadId,
-                    workflowType: workflowType.charAt(0).toUpperCase() + workflowType.slice(1), // Capitalize
-                    draftTitle: draftTitle,
-                    startedOn: session.createdAt,
-                    lastActivity: session.updatedAt
-                };
-            });
+            return {
+                threadId: session.threadId,
+                workflowType: workflowType.charAt(0).toUpperCase() + workflowType.slice(1), // Capitalize
+                draftTitle: draftTitle,
+                startedOn: session.createdAt,
+                lastActivity: session.updatedAt
+            };
+        });
 
         return res.status(200).json({ success: true, drafts: tableData });
     } catch (error) {
-        return res.status(500).json({ 
-            success: false, 
-            message: 'Server error', 
-            details: process.env.NODE_ENV === 'production' ? "Internal server error" : error.message 
+        return res.status(500).json({
+            success: false,
+            message: 'Server error',
+            details: process.env.NODE_ENV === 'production' ? "Internal server error" : error.message
         });
     }
 };
