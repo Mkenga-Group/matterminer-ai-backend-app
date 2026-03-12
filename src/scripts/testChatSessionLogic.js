@@ -35,11 +35,19 @@ class MockChatSession {
     }
 
     static async findAll(options) {
-        const { tenantId } = options.where;
+        const { tenantId, metadata } = options.where;
         let results = [];
         for (const key in mockData) {
             const item = mockData[key];
             if (item.tenantId === tenantId) {
+                // Simple support for metadata.active_workflow.[Op.ne]
+                if (metadata && metadata.active_workflow) {
+                    const opNe = MockChatSession.sequelize.Sequelize.Op.ne;
+                    const forbiddenValue = metadata.active_workflow[opNe];
+                    if (item.metadata && item.metadata.active_workflow === forbiddenValue) {
+                        continue;
+                    }
+                }
                 results.push(item);
             }
         }
@@ -58,6 +66,11 @@ class MockChatSession {
         }
     }
 }
+MockChatSession.sequelize = {
+    Sequelize: {
+        Op: { ne: Symbol('ne') }
+    }
+};
 
 // Intercept require('../models') directly
 const path = require('path');

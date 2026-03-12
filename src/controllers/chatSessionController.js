@@ -1,4 +1,4 @@
-// controllers/draftController.js
+// controllers/chatSessionController.js
 
 const { ChatSession } = require('../models');
 
@@ -8,7 +8,7 @@ exports.syncChatSession = async (req, res) => {
     // Destructure the unified payload sent by the Python Agent
     const {
         tenantId,
-        threadId = 'default',
+        threadId,
         client_number,
         client_type,
         first_name,
@@ -16,8 +16,12 @@ exports.syncChatSession = async (req, res) => {
         email,
         metadata: incomingMetadata
     } = req.body;
-    console.log(`[SYNC] Updating Vault for Tenant: ${tenantId}`);
+    console.log(`[SYNC] Updating Vault for Tenant: ${tenantId}, Thread: ${threadId}`);
     try {
+        if (!tenantId) {
+            return res.status(400).json({ error: "tenantId is required" });
+        }
+
         // Find existing session or create a new one
         let session = await ChatSession.findOne({ where: { tenantId, threadId } });
         // 1. RECOVER EXISTING STATE (To ensure we don't wipe existing data)
@@ -42,17 +46,30 @@ exports.syncChatSession = async (req, res) => {
         // 3. DATABASE PERSISTENCE (Safe Merging)
         if (!session) {
             // First time initialization
-            session = await ChatSession.create({
-                tenantId,
-                threadId,
-                client_number,
-                client_type,
-                first_name,
-                last_name,
-                email,
-                metadata: updatedMetadata
-            });
+            try {
+                session = await ChatSession.create({
+                    tenantId,
+                    threadId: threadId || 'default',
+                    client_number,
+                    client_type,
+                    first_name,
+                    last_name,
+                    email,
+                    metadata: updatedMetadata
+                });
+            } catch (createError) {
+                // Handle race condition: if it was created between findOne and create
+                if (createError.name === 'SequelizeUniqueConstraintError') {
+                    session = await ChatSession.findOne({ where: { tenantId, threadId: threadId || 'default' } });
+                    // If even after finding it's null, we have a bigger issue, but let's proceed
+                    if (!session) throw createError;
+                } else {
+                    throw createError;
+                }
+            }
         } else {
+            // This is the update path for an existing session
+
             // --- TOP-LEVEL COLUMN UPDATES ---
             // Only update if the value is explicitly provided (prevents null overwrites)
             if (client_number !== undefined) session.client_number = client_number;
@@ -72,8 +89,9 @@ exports.syncChatSession = async (req, res) => {
         console.error("CRITICAL SYNC-ERROR:", error);
         res.status(500).json({
             error: "Failed to sync session state",
-            details: error.message
+            details: process.env.NODE_ENV === 'production' ? "Internal server error" : error.message
         });
+
     }
 };
 /**
@@ -95,6 +113,7 @@ exports.getChatSession = async (req, res) => {
         // If no session exists, we return the base schema so the AI doesn't crash on nulls
         if (!session) {
             return res.status(200).json({
+                threadId: null,
                 client_number: null,
                 client_type: null,
                 first_name: null,
@@ -121,6 +140,7 @@ exports.getChatSession = async (req, res) => {
         res.status(200).json({
             id: session.id,
             tenantId: session.tenantId,
+            threadId: session.threadId,
             client_number: session.client_number,
             client_type: session.client_type,
             first_name: session.first_name,
@@ -132,8 +152,9 @@ exports.getChatSession = async (req, res) => {
         console.error("CRITICAL GET-SESSION-ERROR:", error);
         res.status(500).json({
             error: "Failed to retrieve vault state",
-            details: error.message
+            details: process.env.NODE_ENV === 'production' ? "Internal server error" : error.message
         });
+
     }
 };
 
@@ -151,7 +172,10 @@ exports.clearChatSession = async (req, res) => {
         await ChatSession.destroy({ where: { tenantId, threadId } });
         res.status(200).json({ success: true, message: "Session cleared." });
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ 
+            error: "Failed to clear session",
+            details: process.env.NODE_ENV === 'production' ? "Internal server error" : error.message 
+        });
     }
 };
 
@@ -163,21 +187,27 @@ exports.getPendingSessions = async (req, res) => {
             return res.status(400).json({ success: false, message: 'tenantId is required' });
         }
 
-        // Fetch all sessions that aren't explicitly cleared/null
+        // Fetch all sessions that aren't explicitly cleared
+        // We use Sequelize.literal or direct path for JSON filtering depending on dialect
+        // Here we'll stick to a robust approach: Fetch only what's needed
         const pendingSessions = await ChatSession.findAll({
             where: {
                 tenantId: tenantId,
-                // Optional: Filter out where active_workflow is 'cleared' depending on JSON dialect
-                // 'metadata.active_workflow': { [Op.not]: 'cleared' }
+                // Using a JSON path query for MySQL/MariaDB/PostgreSQL via literal for robustness
+                // A common way in Sequelize is to use the path syntax:
+                metadata: {
+                    active_workflow: {
+                        [ChatSession.sequelize.Sequelize.Op.ne]: 'cleared'
+                    }
+                }
             },
             order: [['updatedAt', 'DESC']] // Most recent first
         });
 
+
         // Map it to a clean tabular format for the frontend UI
-        const tableData = pendingSessions
-            // Filter out truly dead sessions in memory to be safe (only exclude if explicitly 'cleared')
-            .filter(s => s.metadata?.active_workflow !== 'cleared')
-            .map(session => {
+        const tableData = pendingSessions.map(session => {
+
                 const workflowType = session.metadata?.active_workflow || 'unknown';
                 let draftTitle = 'Unknown Draft';
 
@@ -202,8 +232,11 @@ exports.getPendingSessions = async (req, res) => {
 
         return res.status(200).json({ success: true, drafts: tableData });
     } catch (error) {
-        console.error('[Session-PENDING] Error:', error);
-        return res.status(500).json({ success: false, message: 'Server error', error: error.message });
+        return res.status(500).json({ 
+            success: false, 
+            message: 'Server error', 
+            details: process.env.NODE_ENV === 'production' ? "Internal server error" : error.message 
+        });
     }
 };
 
