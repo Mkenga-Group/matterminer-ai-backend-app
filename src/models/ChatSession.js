@@ -13,6 +13,12 @@ ChatSession.init({
     type: DataTypes.STRING,
     allowNull: false,
   },
+  threadId: {
+    // NEW: Unique identifier for the specific workflow tab/draft
+    type: DataTypes.STRING,
+    allowNull: false,
+    defaultValue: 'default', // Backward compatibility for existing sessions
+  },
   client_number: {
     type: DataTypes.STRING,
     allowNull: true,
@@ -50,7 +56,8 @@ ChatSession.init({
   indexes: [
     { fields: ['tenantId'] },
     { fields: ['client_number'] },
-    { fields: ['email'] }
+    { fields: ['email'] },
+    { unique: true, fields: ['tenantId', 'threadId'] }
   ],
 });
 

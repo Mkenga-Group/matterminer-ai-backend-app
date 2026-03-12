@@ -8,6 +8,7 @@ exports.syncChatSession = async (req, res) => {
     // Destructure the unified payload sent by the Python Agent
     const {
         tenantId,
+        threadId = 'default',
         client_number,
         client_type,
         first_name,
@@ -18,7 +19,7 @@ exports.syncChatSession = async (req, res) => {
     console.log(`[SYNC] Updating Vault for Tenant: ${tenantId}`);
     try {
         // Find existing session or create a new one
-        let session = await ChatSession.findOne({ where: { tenantId } });
+        let session = await ChatSession.findOne({ where: { tenantId, threadId } });
         // 1. RECOVER EXISTING STATE (To ensure we don't wipe existing data)
         const existingMetadata = session ? (session.metadata || {}) : {};
         // 2. UNIFIED METADATA MERGE (The "Amnesia-Proof" Core)
@@ -43,6 +44,7 @@ exports.syncChatSession = async (req, res) => {
             // First time initialization
             session = await ChatSession.create({
                 tenantId,
+                threadId,
                 client_number,
                 client_type,
                 first_name,
@@ -80,14 +82,14 @@ exports.syncChatSession = async (req, res) => {
  */
 exports.getChatSession = async (req, res) => {
     try {
-        const { tenantId } = req.query;
+        const { tenantId, threadId = 'default' } = req.query;
         if (!tenantId) {
             return res.status(400).json({ error: "Missing tenantId parameter" });
         }
         // Fetch the most recent session for this tenant
         const session = await ChatSession.findOne({
-            where: { tenantId },
-            order: [['createdAt', 'DESC']]
+            where: { tenantId, threadId },
+            order: [['updatedAt', 'DESC']]
         });
         // 1. HARD DEFAULTS (For Fresh Sessions)
         // If no session exists, we return the base schema so the AI doesn't crash on nulls
@@ -141,13 +143,67 @@ exports.getChatSession = async (req, res) => {
  */
 exports.clearChatSession = async (req, res) => {
     const tenantId = req.query.tenantId || req.body.tenantId;
+    const threadId = req.query.threadId || req.body.threadId || 'default';
     try {
         if (!tenantId) {
             return res.status(400).json({ success: false, message: "tenantId is required" });
         }
-        await ChatSession.destroy({ where: { tenantId } });
+        await ChatSession.destroy({ where: { tenantId, threadId } });
         res.status(200).json({ success: true, message: "Session cleared." });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
 };
+
+exports.getPendingSessions = async (req, res) => {
+    try {
+        const { tenantId } = req.query;
+
+        if (!tenantId) {
+            return res.status(400).json({ success: false, message: 'tenantId is required' });
+        }
+
+        // Fetch all sessions that aren't explicitly cleared/null
+        const pendingSessions = await ChatSession.findAll({
+            where: {
+                tenantId: tenantId,
+                // Optional: Filter out where active_workflow is 'cleared' depending on JSON dialect
+                // 'metadata.active_workflow': { [Op.not]: 'cleared' }
+            },
+            order: [['updatedAt', 'DESC']] // Most recent first
+        });
+
+        // Map it to a clean tabular format for the frontend UI
+        const tableData = pendingSessions
+            // Filter out truly dead sessions in memory to be safe (only exclude if explicitly 'cleared')
+            .filter(s => s.metadata?.active_workflow !== 'cleared')
+            .map(session => {
+                const workflowType = session.metadata?.active_workflow || 'unknown';
+                let draftTitle = 'Unknown Draft';
+
+                if (workflowType === 'calendar') {
+                    draftTitle = session.metadata.event_draft?.title
+                        ? `Meeting: ${session.metadata.event_draft.title}`
+                        : 'Unscheduled Meeting';
+                } else if (workflowType === 'client') {
+                    draftTitle = session.first_name || session.last_name
+                        ? `Client: ${session.first_name || ''} ${session.last_name || ''}`.trim()
+                        : 'Client: Details Pending';
+                }
+
+                return {
+                    threadId: session.threadId,
+                    workflowType: workflowType.charAt(0).toUpperCase() + workflowType.slice(1), // Capitalize
+                    draftTitle: draftTitle,
+                    startedOn: session.createdAt,
+                    lastActivity: session.updatedAt
+                };
+            });
+
+        return res.status(200).json({ success: true, drafts: tableData });
+    } catch (error) {
+        console.error('[Session-PENDING] Error:', error);
+        return res.status(500).json({ success: false, message: 'Server error', error: error.message });
+    }
+};
+
