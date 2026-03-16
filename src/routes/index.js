@@ -7,6 +7,7 @@ const webhookRoutes = require('./webhookRoutes');
 const walletRoutes = require('./walletRoutes');
 const ragRoutes = require('./ragRoutes');
 const chatSessionRoutes = require('./chatSessionRoutes');
+const clientRoutes = require('./clientRoutes');
 
 router.use('/events', eventRoutes);
 router.use('/auth', authRoutes);
@@ -14,6 +15,8 @@ router.use('/rag/lookup', ragRoutes);
 router.use('/webhook', webhookRoutes);
 router.use('/wallet', walletRoutes);
 router.use('/chat', chatSessionRoutes);
+router.use('/chat', chatSessionRoutes);
+router.use('/core', clientRoutes);
 
 // Placeholder for routes
 router.get('/health', (req, res) => {

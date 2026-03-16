@@ -22,8 +22,10 @@ exports.syncLocalToGoogle = async (tenantId, eventData, googleEventId = null) =>
    const gEvent = {
       summary: eventData.title,
       description: eventData.description,
+      location: eventData.location,	   
       start: { dateTime: new Date(eventData.startTime).toISOString() },
       end: { dateTime: new Date(eventData.endTime).toISOString() },
+      attendees: eventData.attendees ? eventData.attendees.map(email => ({ email })) : [],	   
    };
 
    if (googleEventId) {

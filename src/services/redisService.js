@@ -146,4 +146,25 @@ async function checkTokenStatus(tenantId) {
     };
 }
 
-module.exports = { storeTokens, getTokens, getValidTokens, deleteTokens, revokeTokens, checkTokenStatus };
+async function storeCoreLogin(email, token) {
+    const loginKey = `core:${email}:userLogin`;
+
+    // Set TTL to 2 hours in seconds (2 hours * 60 minutes * 60 seconds)
+    const ttlInSeconds = 7200;
+
+    // Use a minimum TTL of 0 to avoid Redis errors (though strictly positive here)
+    const safeTTL = Math.max(ttlInSeconds, 0);
+
+    // Store the JSON-stringified tokens with the EX (expiration) option
+    await client.set(loginKey, JSON.stringify(token), { EX: safeTTL });
+
+    console.log(`Login tokens stored in redis for user: ${email} saved.`);
+}
+
+async function getCoreLogin(email) {
+    const loginKey = `core:${email}:userLogin`;
+    const data = await client.get(loginKey);
+    return data ? JSON.parse(data) : null;
+}
+
+module.exports = { storeTokens, getTokens, getValidTokens, deleteTokens, revokeTokens, checkTokenStatus, storeCoreLogin, getCoreLogin };
