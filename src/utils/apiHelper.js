@@ -8,13 +8,17 @@ const axios = require('axios');
  * @param {object} [customHeaders={}] - Any additional headers to merge with defaults.
  * @returns {Promise<object>} - A standardized response: { success, status, message, data }.
  */
-const apiRequest = async (url, method = 'get', data = null, customHeaders = {}) => {
+const apiRequest = async (url, method = 'get', data = null, customHeaders = {}, token = null) => {
   const headers = {
     'Accept': 'application/json',
     'Content-Type': 'application/json',
     ...customHeaders // Allows overwriting or adding headers per request
   };
 
+  if(token){
+      headers['Authorization'] = `Bearer ${token}`;
+  }
+	
   const config = {
     method: method.toLowerCase(),
     url: url,
@@ -22,7 +26,7 @@ const apiRequest = async (url, method = 'get', data = null, customHeaders = {}) 
     data: data, // Axios automatically serializes this to JSON
     maxBodyLength: Infinity,
   };
-
+    
   try {
     const response = await axios.request(config);
     
