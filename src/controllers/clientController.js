@@ -6,7 +6,7 @@ const { apiRequest } = require('../utils/apiHelper');
 
 const { storeCoreLogin,getCoreLogin } = require('../services/redisService');
 
-const CORE_SERVICE_BASE_URL = 'https://dev.matterminer.com/api/login';
+//const CORE_SERVICE_BASE_URL = 'https://dev.matterminer.com/api/login';
 
 exports.createEvent = async (req, res) => {
     const { tenantId, title, start_datetime, end_datetime, description, location, timezone, visibility, status, attendees } = req.body;
