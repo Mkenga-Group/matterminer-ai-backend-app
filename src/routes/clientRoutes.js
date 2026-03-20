@@ -6,6 +6,11 @@ const clientController = require('../controllers/clientController');
 router.post('/login', clientController.login);
 router.post('/client', clientController.createClient);
 router.get('/client', clientController.createClient);
+router.post('/standard-event', clientController.createEvent);
+router.post('/all-event', clientController.createAllDayEvent);
+router.post('/contact', clientController.createContact);
 router.get('/hasValidToken', clientController.isLoginSessionValid);
+router.get('/countries', clientController.searchCountries);
+router.get('/search-contact', clientController.getContactIdByEmail);
 
 module.exports = router;

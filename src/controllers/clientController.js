@@ -10,7 +10,7 @@ const { storeCoreLogin,getCoreLogin } = require('../services/redisService');
 
 exports.createEvent = async (req, res) => {
     const { tenantId, title, start_datetime, end_datetime, description, location, timezone, visibility, status, attendees } = req.body;
-    const email = req.body?.email || req.headers['x-user-email'];
+    const email = req.headers['x-user-email'];
     try {
 
         if(!email){
@@ -52,9 +52,9 @@ exports.createEvent = async (req, res) => {
           ]
         }
 
-        const result = await apiRequest(`${CORE_SERVICE_BASE_URL}/api/calendar`, 'post', payload, hasAccessToken.access_token);
+        const result = await apiRequest(`${process.env.CORE_SERVICE_BASE_URL}/api/calendar`, 'post', payload, {}, hasAccessToken.access_token);
 
-        if (result.status === 200) {
+        if (result.status === 200 || result.status === 201) {
             //-. Cleanup chat session
             await ChatSession.destroy({ where: { tenantId } });
             return res.status(200).json({
@@ -78,7 +78,7 @@ exports.createEvent = async (req, res) => {
 
 exports.createAllDayEvent = async (req, res) => {
     const { tenantId, title, start_datetime, end_datetime, description } = req.body;
-    const email = req.body?.email || req.headers['x-user-email'];
+    const email = req.headers['x-user-email'];
 
     try {
 
@@ -114,9 +114,9 @@ exports.createAllDayEvent = async (req, res) => {
           ]
         }
 
-        const result = await apiRequest(`${CORE_SERVICE_BASE_URL}/api/calendar`, 'post', payload, hasAccessToken.access_token);
+        const result = await apiRequest(`${process.env.CORE_SERVICE_BASE_URL}/api/calendar`, 'post', payload, {}, hasAccessToken.access_token);
 
-        if (result.status === 200) {
+        if (result.status === 200 || result.status === 201) {
             //-. Cleanup chat session
             await ChatSession.destroy({ where: { tenantId } });
             return res.status(200).json({
@@ -140,10 +140,10 @@ exports.createAllDayEvent = async (req, res) => {
 
 exports.createContact = async (req, res) => {
     const { tenantId, title, first_name, middle_name, last_name, contact_email, country_code, phone_number } = req.body;
-    const email = req.body?.email || req.headers['x-user-email'];
+    const email = req.headers['x-user-email'];
 
     try {
-
+        
         if(!email){
             return res.status(400).json({
                 success: false,
@@ -165,7 +165,7 @@ exports.createContact = async (req, res) => {
            first_name,
            middle_name,
            last_name,
-	   email,
+	   email: contact_email,
            country_code,
 	   phone_number,
            model_type: "App\\Models\\Prospect",
@@ -174,9 +174,9 @@ exports.createContact = async (req, res) => {
 	   featured: false
 	};
 
-        const result = await apiRequest(`${CORE_SERVICE_BASE_URL}/api/contacts`, 'post', payload, hasAccessToken.access_token);
-
-        if (result.status === 200) {
+        const result = await apiRequest(`${process.env.CORE_SERVICE_BASE_URL}/api/contacts`, 'post', payload, {}, hasAccessToken.access_token);
+        console.log(result);
+        if (result.status === 200 || result.status === 201) {	
             //-. Cleanup chat session
             await ChatSession.destroy({ where: { tenantId } });
             return res.status(200).json({
@@ -199,9 +199,9 @@ exports.createContact = async (req, res) => {
 };
 
 exports.createClient = async (req, res) => {
-    const { tenantId, first_name, last_name, client_type, client_email } = req.body;
-    const email = req.body?.email || req.headers['x-user-email'];
-
+    const { tenantId, first_name, last_name, client_type, client_email, country_id, street } = req.body;
+    const email = req.headers['x-user-email'];
+   
     try {
 
         if(!email){
@@ -216,10 +216,14 @@ exports.createClient = async (req, res) => {
            first_name, 
            last_name, 
            client_type, 
-	   email: client_email		
+	   email: client_email,
+           country_id,
+	   street,
+           contact_id: 2
         }
 
         const hasAccessToken = await getCoreLogin(email);
+	    
         if(!hasAccessToken){
            return res.status(404).json({
                success: false,
@@ -227,9 +231,9 @@ exports.createClient = async (req, res) => {
            });
         }
        
-        const result = await apiRequest(`${CORE_SERVICE_BASE_URL}/api/clients`, 'post', payload, hasAccessToken.access_token);
+        const result = await apiRequest(`${process.env.CORE_SERVICE_BASE_URL}/api/clients`, 'post', payload, {}, hasAccessToken.access_token);
 
-        if (result.status === 200) {
+        if (result.status === 200 || result.status === 201){
             //-. Cleanup chat session		
             await ChatSession.destroy({ where: { tenantId } });
             return res.status(200).json({
@@ -237,7 +241,7 @@ exports.createClient = async (req, res) => {
                 message: result?.message || `Client has been created`
             });
         }else{
-            return res.status(401).json({
+            return res.status(400).json({
                 success: false,
                 message: result?.message || `Failed to create a client`
             });
@@ -253,7 +257,7 @@ exports.createClient = async (req, res) => {
 
 exports.createMatter = async (req, res) => {
     const { tenantId, full_name, phone, address } = req.body;
-    const email = req.body?.email || req.headers['x-user-email'];
+    const email = req.headers['x-user-email'];
 
     try {
 
@@ -277,9 +281,9 @@ exports.createMatter = async (req, res) => {
             tenantId, full_name, email, phone, address
         };
 
-        const result = await apiRequest(`${CORE_SERVICE_BASE_URL}/api/matters`, 'post', payload, hasAccessToken.access_token);
+        const result = await apiRequest(`${process.env.CORE_SERVICE_BASE_URL}/api/matters`, 'post', payload, {}, hasAccessToken.access_token);
 
-        if (result.status === 200) {
+        if (result.status === 200 || result.status === 201) {
             //-. Cleanup chat session
             await ChatSession.destroy({ where: { tenantId } });
             return res.status(200).json({
@@ -287,7 +291,7 @@ exports.createMatter = async (req, res) => {
                 message: result?.message || `Matter has been created`
             });
         }else{
-            return res.status(401).json({
+            return res.status(400).json({
                 success: false,
                 message: result?.message || `Failed to create a matter`
             });
@@ -317,7 +321,7 @@ exports.login = async (req, res) => {
             password
 	};
        	   
-        const result = await apiRequest(`${CORE_SERVICE_BASE_URL}/api/login`, 'post', payload);
+        const result = await apiRequest(`${process.env.CORE_SERVICE_BASE_URL}/api/login`, 'post', payload);
 
 	if (result.status === 200) {
             const _message = result.data.message;		
@@ -345,7 +349,7 @@ exports.login = async (req, res) => {
 };
 
 exports.isLoginSessionValid = async(req, res) => {
-   const { email } = req.query;
+    const email = req.headers['x-user-email'] || req.query.email;
     try{
         if(!email){
             return res.status(400).json({
@@ -372,5 +376,124 @@ exports.isLoginSessionValid = async(req, res) => {
             success: false,
             message: "No access token."
         });
+    }
+};
+
+exports.searchCountries = async(req, res) => {
+    try {
+      const email = req.headers['x-user-email'];
+      const { page, per_page, search, sort_by, sort_order } = req.query;
+
+      // 2. Call the utility method we created
+      // We pass these as an object to the filters parameter
+      const queryParams = {
+        page: page || 1,
+        per_page: per_page || 15,
+        search: search || 'Kenya',
+        sort_by: sort_by || 'created_at',
+        sort_order: sort_order || 'desc'
+      };
+
+      const params = new URLSearchParams({
+          page,
+          per_page,
+          search,
+          sort_by,
+          sort_order
+      }); 
+   
+      const hasAccessToken = await getCoreLogin(email);
+      if(!hasAccessToken){
+         return res.status(404).json({
+             success: false,
+             message: "Not found"
+         });
+      }	    
+
+      const result = await apiRequest(`${process.env.CORE_SERVICE_BASE_URL}/api/countries?${params.toString()}`, 'get', null, {}, hasAccessToken.access_token);	    
+      if (result.status === 200) {
+	  console.log({ success: true, country_id: result.data.data[0].id, message: 'Retreived country id successfully' });     
+         return res.status(200).json({
+             success: true,
+             country_id: result.data.data[0].id,
+             message: 'Retreived country id successfully'
+         });
+      }else{
+         return res.status(400).json({
+             success: false,
+             message: result?.message || `Failed get the country id`
+         });
+      }   
+    } catch (error) {
+      // 4. Global Catch for unexpected server errors
+      console.error('Error in clientController.searchCountries:', error);
+      return res.status(500).json({
+        success: false,
+        error: true,
+        message: `Internal Server Error: ${error.message}`
+      });
+    }
+};
+
+exports.getContactIdByEmail = async(req,res) => {
+    try {
+      const email = req.headers['x-user-email'];
+      const { tenantId,search_email, page, per_page, search, sort_by, sort_order } = req.query;
+    
+      const queryParams = {
+        page: page || 1,
+        per_page: per_page || 15,
+        search: search_email || '',
+        sort_by: sort_by || 'created_at',
+        sort_order: sort_order || 'desc'
+      };
+
+      const params = new URLSearchParams({
+          page,
+          per_page,
+          search,
+          sort_by,
+          sort_order
+      });	    
+
+      const hasAccessToken = await getCoreLogin(email);
+      if(!hasAccessToken){
+         return res.status(404).json({
+             success: false,
+             message: "Not found"
+         });
+      }
+
+      const result = await apiRequest(`${process.env.CORE_SERVICE_BASE_URL}/api/contacts?${params.toString()}`, 'get', {}, null, hasAccessToken.access_token);
+      if (result.status === 200) {
+	  let _id = null;
+	   _id = result.data.data[0].id;
+	  if(_id){
+             return res.status(200).json({
+                success: true,
+                contact_id: result.data.data[0].id ? result.data.data[0].id : 0,		  
+                message: result?.message || `Contact id`
+             });
+	  }else{
+              return res.status(404).json({
+                  success: false,
+		  contact_id: null,
+		  message: 'Contact Id not found'     
+	      });
+	  }
+      }else{
+          return res.status(400).json({
+             success: false,
+             message: result?.message || `Failed to retrieve contact id`
+          });
+      }
+    } catch (error) {
+      // 4. Global Catch for unexpected server errors
+      console.error('Error in clientController.getContactIdByEmail:', error);
+      return res.status(500).json({
+         success: false,
+         error: true,
+         message: `Internal Server Error: ${error.message}`
+      });
     }
 };
