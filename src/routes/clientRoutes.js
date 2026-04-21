@@ -12,5 +12,8 @@ router.post('/contact', clientController.createContact);
 router.get('/hasValidToken', clientController.isLoginSessionValid);
 router.get('/countries', clientController.searchCountries);
 router.get('/search-contact', clientController.getContactIdByEmail);
+router.get('/case-stage', clientController.getCaseStageInfo);
+router.get('/practice-area', clientController.getPracticeAreaInfo);
+router.get('/billing-info', clientController.getBillingInfo);
 
 module.exports = router;

@@ -15,7 +15,7 @@ router.use('/rag/lookup', ragRoutes);
 router.use('/webhook', webhookRoutes);
 router.use('/wallet', walletRoutes);
 router.use('/chat', chatSessionRoutes);
-router.use('/chat', chatSessionRoutes);
+//router.use('/chat', chatSessionRoutes);
 router.use('/core', clientRoutes);
 
 // Placeholder for routes

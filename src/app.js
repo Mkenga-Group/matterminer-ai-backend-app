@@ -58,12 +58,12 @@ const swaggerDocument = YAML.load(path.join(__dirname, '..', 'swagger.yaml'));
 const yamlPath = path.join(__dirname, '..', 'swagger.yaml');
 if (fs.existsSync(yamlPath)) {
   const swaggerDocument = YAML.load(yamlPath);
-  app.use('/calendar/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+  app.use('/api/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 } else {
   console.error(`SWAGGER ERROR: Cannot find file at ${yamlPath}`);
 }
 
-app.use('/calendar', routes);
+app.use('/app', routes);
 
 app.use((req, res) => res.status(404).send({ status: false, error: 'Route not found' }));
 

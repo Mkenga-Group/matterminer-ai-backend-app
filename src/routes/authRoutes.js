@@ -24,6 +24,33 @@ router.get('/google', (req, res) => {
   }
 });
 
+router.get('/microsoft', (req, res) => {
+  try {
+    const tenantId = req.query.tenant_id || 'default_tenant';
+    const url = getGoogleAuthUrl(tenantId);
+
+    // res.redirect(url);
+    res.json({ success: true, data: url, message: 'Microsift consent URL' });
+  } catch (error) {
+    const errMsg = error?.message || error.response?.data?.error_description;
+    console.error('Error generating Auth URL:', errMsg);
+    res.status(500).json({ success: false, message: 'Microsoft consent has failed', details: errMsg });
+  }
+});
+
+router.get('/outlook/callback', (req, res) => {
+   try{
+      const code = req.query.code;
+      const tenantId = req.query.state || 'default_tenant';
+      res.json({
+         success: true,
+         message: 'tenant authentication',
+      });      
+   } catch(error) {
+      res.status(500).json({ success: false, error: 'Failed to get Microsoft tokens', details: errMsg });
+   }
+});
+
 router.get('/oauth2callback', async (req, res) => {
   const code = req.query.code;
   const tenantId = req.query.state || 'default_tenant';
@@ -74,7 +101,7 @@ router.get('/oauth2callback', async (req, res) => {
   }
 });
 
-router.get('/hasGrantToken', auth, async (req, res) => {
+router.get('/hasGrantToken', async (req, res) => {
   const tenantId = req.query.tenant_id || 'default_tenant';
 
   try {
@@ -83,14 +110,12 @@ router.get('/hasGrantToken', auth, async (req, res) => {
       return res.status(400).json({ success: false, message: 'No tenantId provided' });
     }
     const status = await checkTokenStatus(tenantId);
-
-    res.json({
-      success: true,
+    console.log('XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX ',status);
+    res.status(status.valid ? 200 : 401).json({
+      success: status.exists ? true: false,
       tenantId,
       ...status,
-      message: status.exists
-        ? (status.valid ? 'Google Calendar integration is active and valid.' : 'Google Calendar integration exists but session is invalid. Re-authentication required.')
-        : 'No Google Calendar integration found for this tenant.'
+      message: status.exists && status.valid ? 'Valid service token' : 'Invalid service token.'
     });
   } catch (error) {
     console.error('Error checking grant token:', error);

@@ -15,7 +15,7 @@ const { ChatSession } = require('../models');
  */
 exports.syncChatSession = async (req, res) => {
     const {
-        tenantId,
+        /*tenantId,*/
         threadId,
         client_number,
         client_type,
@@ -24,6 +24,8 @@ exports.syncChatSession = async (req, res) => {
         email,
         metadata: incomingMetadata
     } = req.body;
+
+    const tenantId = req.headers['x-tenant-id'] || req.body.tenantId;	
 
     console.log(`[SYNC] Updating Vault for Tenant: ${tenantId}, Thread: ${threadId}`);
 
@@ -124,7 +126,8 @@ exports.syncChatSession = async (req, res) => {
  */
 exports.getChatSession = async (req, res) => {
     try {
-        const { tenantId, threadId } = req.query;
+        const { threadId } = req.query;
+        const tenantId = req.headers['x-tenant-id'] || req.query.tenantId;    
 
         if (!tenantId) {
             return res.status(400).json({ error: "Missing tenantId parameter" });
@@ -195,7 +198,7 @@ exports.getChatSession = async (req, res) => {
  * Called by Python agent on workflow completion.
  */
 exports.clearChatSession = async (req, res) => {
-    const tenantId = req.query.tenantId || req.body.tenantId;
+    const tenantId = req.headers['x-tenant-id'] || req.query.tenantId || req.body.tenantId;
     const threadId = req.query.threadId || req.body.threadId;
 
     try {
@@ -227,7 +230,7 @@ exports.clearChatSession = async (req, res) => {
  */
 exports.getPendingSessions = async (req, res) => {
     try {
-        const { tenantId } = req.query;
+        const tenantId = req.headers['x-tenant-id'] || req.query.tenantId;
 
         if (!tenantId) {
             return res.status(400).json({ success: false, message: 'tenantId is required' });

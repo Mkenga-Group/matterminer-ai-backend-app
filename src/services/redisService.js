@@ -2,25 +2,53 @@ const redis = require('redis');
 
 const { refreshAccessToken } = require('../services/googleOAuth');
 
-
-/** 
- * Initialize client
+/**
+ * Initialize client with Auto-Reconnect Logic
  */
 const client = redis.createClient({
     password: process.env.REDIS_PASS,
     socket: {
         host: process.env.REDIS_HOST,
-        password: process.env.REDIS_PASS
+        // The password should usually stay at the top level or within socket depending on library version
+        // Adding the strategy here prevents the "Socket closed unexpectedly" crash
+        reconnectStrategy: (retries) => {
+            const delay = Math.min(retries * 100, 3000); // Exponential backoff up to 3 seconds
+            console.warn(`[Redis] Connection lost. Attempting reconnect #${retries} in ${delay}ms...`);
+            
+            // Optional: Stop retrying after a certain point (e.g., 20 attempts) 
+            // to avoid infinite loops if the server is permanently down.
+            if (retries > 20) {
+                return new Error('Redis Max Retry Attempts Reached');
+            }
+            
+            return delay;
+        }
     }
 });
 
-client.on('error', (err) => console.error('Redis Client Error', err));
+/**
+ * Global Error Handler
+ * This keeps the Node process alive even when Redis is down
+ */
+client.on('error', (err) => {
+    console.error('Redis Client Error:', err.message);
+});
 
-/** 
+client.on('connect', () => console.log('Redis Client: Connected'));
+client.on('reconnecting', () => console.log('Redis Client: Reconnecting...'));
+client.on('ready', () => console.log('Redis Client: Ready and accepting commands'));
+
+/**
  * Connect to Redis
  */
 (async () => {
-    if (!client.isOpen) await client.connect();
+    try {
+        if (!client.isOpen) {
+            await client.connect();
+        }
+    } catch (err) {
+        console.error('Initial Redis Connection Failed:', err);
+    }
 })();
 
 /**
