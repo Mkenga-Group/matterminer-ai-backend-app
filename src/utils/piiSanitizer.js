@@ -22,3 +22,51 @@ exports.redactPII = (text) => {
 
     return sanitized;
 };
+
+/**
+ * A hybrid utility that recursively sanitizes raw JSON data.
+ * It strictly redacts known sensitive keys entirely, and applies
+ * regex redaction to all other unstructured text values.
+ * 
+ * @param {Object} data - The raw JSON object from the legal module
+ * @returns {Object} - The sanitized JSON object
+ */
+exports.sanitizeLegalJSON = (data) => {
+    if (!data) return data;
+
+    const sensitiveKeys = [
+        'clientname', 'prospectname', 'address', 'dob', 'dateofbirth',
+        'accountnumber', 'creditcard', 'billinginfo', 'ssn', 'passport'
+    ];
+
+    const sanitizeNode = (node) => {
+        if (Array.isArray(node)) {
+            return node.map(item => sanitizeNode(item));
+        } else if (node !== null && typeof node === 'object') {
+            const sanitizedObj = {};
+            for (const [key, value] of Object.entries(node)) {
+                const lowerKey = key.toLowerCase();
+                
+                // 1. Key-Based Redaction: If the key is highly sensitive, mask it completely.
+                if (sensitiveKeys.some(sk => lowerKey.includes(sk))) {
+                    sanitizedObj[key] = '[REDACTED]';
+                } 
+                // 2. Recursive traversal for nested objects
+                else if (typeof value === 'object') {
+                    sanitizedObj[key] = sanitizeNode(value);
+                } 
+                // 3. Regex-Based Redaction: For unstructured text (e.g. descriptions, notes)
+                else if (typeof value === 'string') {
+                    sanitizedObj[key] = exports.redactPII(value);
+                } 
+                else {
+                    sanitizedObj[key] = value;
+                }
+            }
+            return sanitizedObj;
+        }
+        return node;
+    };
+
+    return sanitizeNode(data);
+};
