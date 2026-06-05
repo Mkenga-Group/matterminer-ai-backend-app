@@ -2,6 +2,7 @@
 const { Pinecone } = require('@pinecone-database/pinecone');
 const { OpenAIEmbeddings } = require("@langchain/openai");
 const workflowData = require('../data/knowledge/workflowKnowledge');
+const { redactPII } = require('../utils/piiSanitizer');
 require('dotenv').config();
 
 // Initialize Pinecone
@@ -22,13 +23,14 @@ async function ingestProtocols(tenantId) {
             const item = workflowData[i];
             const content = `Category: ${item.category}\nAction: ${item.action}\nProblem: ${item.problem}\nSolution: ${item.solution}`;
             
-            const vectorValues = await embeddings.embedQuery(content);
+            const safeContent = redactPII(content);
+            const vectorValues = await embeddings.embedQuery(safeContent);
             
             records.push({
                 id: `protocol-${tenantId}-${i}`,
                 values: vectorValues, // These are the vector numbers
                 metadata: {
-                    text: content,
+                    text: safeContent,
                     tenantId: tenantId,
                     category: item.category
                 }

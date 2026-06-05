@@ -7,7 +7,8 @@ function getPineconeIndex() {
     if (!pc) {
         if (!process.env.PINECONE_API_KEY) throw new Error('PINECONE_API_KEY is not defined');
         pc = new Pinecone({ apiKey: process.env.PINECONE_API_KEY });
-        index = pc.index("nuru-knowledge-base");
+        const indexName = process.env.PINECONE_INDEX_NAME || "nuru-knowledge-base";
+        index = pc.index({ name: indexName });
     }
     return index;
 }
@@ -34,7 +35,8 @@ exports.lookupProtocol = async (req, res) => {
         const currentEmbeddings = getEmbeddings();
         const currentIndex = getPineconeIndex();
 
-        const queryVector = await currentEmbeddings.embedQuery(query);
+        const cleanQuery = query.trim();
+        const queryVector = await currentEmbeddings.embedQuery(cleanQuery);
 
         const searchResponse = await currentIndex.namespace("workflow_protocols").query({
             vector: queryVector,
@@ -47,7 +49,7 @@ exports.lookupProtocol = async (req, res) => {
 
         // Format the results into a clean string for the LLM to read
         const context = searchResponse.matches
-            .map(match => `[Protocol: ${match.metadata.category}] ${match.metadata.text}`)
+            .map(match => `[Protocol: ${match.metadata?.category || 'General'}] ${match.metadata?.text || ''}`)
             .join("\n---\n");
 
         res.json({
@@ -58,5 +60,34 @@ exports.lookupProtocol = async (req, res) => {
     } catch (error) {
         console.error("RAG Controller Error:", error);
         res.status(500).json({ error: "Internal retrieval error" });
+    }
+};
+
+/**
+ * Handles recanting/deletion of PII and tenant data from the vector database.
+ */
+exports.recantPII = async (req, res) => {
+    try {
+        const { tenantId } = req.body;
+
+        if (!tenantId) {
+            return res.status(400).json({ error: "Missing tenantId for recant operation" });
+        }
+
+        const currentIndex = getPineconeIndex();
+
+        // Delete all vectors associated with this tenantId
+        await currentIndex.namespace("workflow_protocols").deleteMany({
+            filter: { tenantId: { "$eq": tenantId } }
+        });
+
+        res.json({
+            success: true,
+            message: `Successfully recanted data for tenant: ${tenantId}`
+        });
+
+    } catch (error) {
+        console.error("RAG Recant Error:", error);
+        res.status(500).json({ error: "Internal error during PII recant operation" });
     }
 };
