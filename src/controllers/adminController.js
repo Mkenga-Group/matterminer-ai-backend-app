@@ -13,8 +13,10 @@ exports.getDashboardStats = async (req, res) => {
 	  daysUntilExpiry: Math.round((sync.metadata.expiration - Date.now()) / (1000 * 60 * 60 * 24))
 	}));
 
-        res.json(report); 
+        res.json({ success: true, data: report, message: 'Health report' }); 
     } catch (error) {
-	res.status(500).json({ error: 'Failed to generate health report' });
+	const errMsg = error?.message || error.response?.data?.error_description;    
+	console.log('Failed getDashboardStats:', errMsg);    
+	res.status(500).json({ success: false, message: 'Failed to generate health report' });
     }
 };

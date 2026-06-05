@@ -1,7 +1,10 @@
-const { DataTypes } = require('sequelize');
+const { DataTypes, Model } = require('sequelize');
 
-module.exports = (sequelize) => {
-  const Integration = sequelize.define('Integration', {
+const sequelize = require('../config/database');
+
+class Integration extends Model {}
+
+Integration.init({
      id: {
 	 type: DataTypes.UUID,
 	 defaultValue: DataTypes.UUIDV4,
@@ -33,7 +36,11 @@ module.exports = (sequelize) => {
 	 type: DataTypes.DATE,
          allowNull: true 
      }
-   }, {
+   },{
+	sequelize,
+        modal: 'Integration',
+	tableName: 'integrations',
+	timestamps: true,   
 	indexes: [
           { fields: ['tenantId', 'provider'] },
 	  // Indexing specific keys inside JSON metadata for performance */
@@ -41,5 +48,4 @@ module.exports = (sequelize) => {
 	]
    });
 
-   return Integration;
-};
+module.exports = Integration;

@@ -1,11 +1,30 @@
+const moment = require('moment');
 
+const { Op } = require('sequelize'); // Ensure Op is imported from sequelize
 const { Event } = require('../models');
+
+const { getTokens, getValidTokens } = require('../services/redisService');
+
 const googleService = require('../services/googleCalendarService');
+const { connectRabbitMQ } = require('../utils/rabbitMQ');
 
 exports.createEvent = async (req, res) => {
   try {
-    const tenantId = req.user.tenantId;
-    const eventData = { ...req.body, tenantId };
+    const tenantId = req.user?.tenantId || req.headers['x-tenant-id'];
+    
+    if (!tenantId) {
+       console.error("Missing Tenant ID in request");
+       return res.status(401).json({ success: false, message: 'Unauthorized: No Tenant ID' });
+    }
+
+    const eventData = { ...req.body, tenantId, provider: 'google' };
+    
+    const googleToken = await getValidTokens(tenantId);
+
+    if(!googleToken){
+       return res.status(400).json({ success: false, message: 'No token found' });
+    }	 
+
     const event = await Event.create(eventData);
     try{
         const gId = await googleService.syncLocalToGoogle(tenantId, event);
@@ -15,43 +34,235 @@ exports.createEvent = async (req, res) => {
     }catch(gErr){
 	console.error('Google Sync Failed:', gErr.message);
     }	  
-    res.status(201).json(event);
+    res.status(201).json({ success: true, message: "Event created successfully", data: event });
   }catch(error){
-      console.error(error);
-      res.status(500).json({ error: 'Failed to create event' });
+    const errMsg = error?.message || error.response?.data?.error_description;	  
+    console.error(errMsg);
+    res.status(500).json({ success: false, message: 'Failed to create event' });
+  }
+};
+
+exports.getAllEvents = async (req, res) => {
+  try {	  
+    const tenantId = req.user?.tenantId || req.headers['x-tenant-id'];
+
+    if (!tenantId) {
+        console.error("Missing Tenant ID in request");
+        return res.status(401).json({ success: false, message: 'Unauthorized: No Tenant ID' });
+    }
+
+    const events = await Event.findAll({ where: { tenantId } });	  
+    res.json({ success: true, message: "Event list", data: events });
+  } catch (error) {
+    console.error('Error getEvents', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch events' });
   }
 };
 
 exports.getEvents = async (req, res) => {
   try {
-    const tenantId = req.user.tenantId;
-    const events = await Event.findAll({ where: { tenantId } });
-    res.json(events);
+    const tenantId = req.user?.tenantId || req.headers['x-tenant-id'];
+
+    if (!tenantId) {
+      console.error("Missing Tenant ID in request");
+      return res.status(401).json({ success: false, message: 'Unauthorized: No Tenant ID' });
+    }
+
+    // 1. Extract and Parse Pagination Parameters
+    // Default to page 1, 10 items per page
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const offset = (page - 1) * limit;
+
+    // 2. Use findAndCountAll to get data and total record count
+    const { count, rows } = await Event.findAndCountAll({
+      where: { tenantId },
+      limit: limit,
+      offset: offset,
+      order: [['startTime', 'DESC']] // Optional: show newest events first
+    });
+
+    // 3. Calculate Metadata
+    const totalPages = Math.ceil(count / limit);
+
+    const _status = rows.length > 0 ? 200 : 404;	  
+
+    res.status(_status).json({
+      success: rows.length > 0 ? true : false,
+      message: rows.length > 0 ? "Event list" : "No event found",
+      data: rows,
+      pagination: {
+        totalItems: count,
+        totalPages: totalPages,
+        currentPage: page,
+        itemsPerPage: limit,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1
+      }
+    });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Failed to fetch events' });
+    const errMsg = error?.message || error.response?.data?.error_description;	  
+    console.error('Error getEvents', errMsg);
+    res.status(500).json({ success: false, message: 'Failed to fetch events' });
   }
 };
 
 exports.getEventById = async (req, res) => {
   try {
-    const tenantId = req.user.tenantId;
-    const { id } = req.params;
-    const event = await Event.findOne({ where: { id, tenantId } });
-    if (!event) return res.status(404).json({ error: 'Event not found' });
-    res.json(event);
+    const tenantId = req.user?.tenantId || req.headers['x-tenant-id'];
+    const { event_id } = req.params;
+
+    if (!tenantId) {
+       console.error("Missing Tenant ID in request");
+       return res.status(401).json({ success: false, message: 'Unauthorized: No Tenant ID' });
+    }
+
+    const event = await Event.findOne({ where: { id: event_id, tenantId } });
+    if (!event) return res.status(404).json({ success: false, message: 'Event not found' });
+    res.json({ sucess: true, message: "Event details", data: event } );
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Failed to fetch event' });
+    const errMsg = error?.message || error.response?.data?.error_description;	  
+    console.error('Error getEventById', errMsg);
+    res.status(500).json({ success: false, message: 'Failed to fetch event' });
+  }
+};
+
+exports.getEventsByRange = async (req, res) => {
+  try {
+    const tenantId = req.user?.tenantId || req.headers['x-tenant-id'];
+    if (!tenantId) {
+        return res.status(401).json({ success: false, message: 'Unauthorized: No Tenant ID' });
+    }
+
+    // 1. Extract Params including 'search'
+    let { startTime, endTime, page = 1, limit = 10, search } = req.query;
+
+    // 2. Dynamic Date Defaults
+    const now = new Date();
+    if (!startTime) startTime = now.toISOString();
+    if (!endTime) {
+        const plusTwoDays = new Date(now);
+        plusTwoDays.setDate(now.getDate() + 2);
+        endTime = plusTwoDays.toISOString();
+    }
+
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+
+    // 3. Validation
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+        return res.status(400).json({ success: false, message: 'Invalid date format' });
+    }
+    if (end <= start) {
+        return res.status(400).json({ success: false, message: 'endTime must be after startTime' });
+    }
+
+    // 4. Construct Where Clause
+    const whereClause = {
+      tenantId,
+      startTime: { [Op.between]: [start, end] }
+    };
+
+    // 5. Add Search Logic (if search string is provided)
+    if (search && search.trim() !== '') {
+      const searchWildcard = `%${search.trim()}%`;
+      whereClause[Op.or] = [
+        { title: { [Op.like]: searchWildcard } }, 
+        { description: { [Op.like]: searchWildcard } }
+      ];
+    }
+
+    // 6. Pagination & Query
+    const pageNumber = Math.max(1, parseInt(page));
+    const limitNumber = Math.max(1, parseInt(limit));
+    const offset = (pageNumber - 1) * limitNumber;
+
+    const { count, rows } = await Event.findAndCountAll({
+      where: whereClause,
+      limit: limitNumber,
+      offset: offset,
+      order: [['startTime', 'ASC']]
+    });
+
+    // 7. Headers & Response
+    res.set('X-Total-Count', count);
+    res.set('Access-Control-Expose-Headers', 'X-Total-Count');
+
+    const _status = rows.length > 0 ? 200: 404;
+
+    res.status(_status).json({
+      success: rows.length > 0 ? true : false,
+      message: rows.length > 0 ? "Events on date range." : "No event found.",	    
+      data: rows,
+      pagination: {
+        totalItems: count,
+        totalPages: Math.ceil(count / limitNumber),
+        currentPage: pageNumber,
+        pageSize: limitNumber,
+        rangeUsed: { start, end },
+        searchQuery: search || null
+      }
+    });
+
+  } catch (error) {
+    const errMsg = error?.message || error.response?.data?.error_description;	  
+    console.error('Error Fetch Events:', errMsg);
+    res.status(500).json({ success: false, message: 'Failed events range including search' });
+  }
+};
+
+exports.checkConflicts = async (req, res) => {
+  try {
+    const tenantId = req.user?.tenantId || req.headers['x-tenant-id'];
+
+    if (!tenantId) {
+        console.error("Missing Tenant ID in request");
+	return res.status(401).json({ success: false, message: 'Unauthorized: No Tenant ID' });
+    }
+
+    const { startTime, endTime } = req.query; 
+
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+	return res.status(400).json({ success: false, message: 'Invalid date format provided' });
+    }
+
+    const conflicts = await Event.findAll({
+      where: {
+        tenantId,
+        startTime: { [Op.lt]: end },
+        endTime: { [Op.gt]: start }
+      }
+    });
+
+    res.json({
+      success: true,	    
+      message: conflicts.length > 0 ? 'Conflict exist' : 'No conflict',	    
+      hasConflict: conflicts.length > 0,
+      conflicts: conflicts
+    });
+  } catch (error) {
+    const errMsg = error?.message || error.response?.data?.error_description;	  
+    console.error('Conflict Check Error:', errMsg);
+    res.status(500).json({ success: false, message: 'Failed to check conflicts' });
   }
 };
 
 exports.updateEvent = async (req, res) => {
   try {
-    const tenantId = req.user.tenantId;
-    const { id } = req.params;
-    const event = await Event.findOne({ where: { id, tenantId } });
-    if (!event) return res.status(404).json({ error: 'Event not found' });
+    const tenantId = req.user?.tenantId || req.headers['x-tenant-id'];
+    const { event_id } = req.params;
+
+    const googleToken = await getValidTokens(tenantId);
+
+    if(!googleToken){
+       return res.status(400).json({ error: 'No token found' });
+    }
+	  
+    const event = await Event.findOne({ where: { id:  event_id, tenantId } });
+    if (!event) return res.status(404).json({ success: false, message: 'Event not found' });
 
     await event.update(req.body);
 
@@ -60,19 +271,28 @@ exports.updateEvent = async (req, res) => {
        await googleService.syncLocalToGoogle(tenantId, event, event.providerEventId);
     }
 
-    res.json(event);
+    res.json({ success: true, message: 'Event has been updated', data: event } );
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Failed to update event' });
+    const errMsg = error?.message || error.response?.data?.error_description;	  
+    console.error('Error update Event', errMsg);
+    res.status(500).json({ success: false, message: 'Failed to update event' });
   }
 };
 
 exports.deleteEvent = async (req, res) => {
   try {
-    const tenantId = req.user.tenantId;
-    const { id } = req.params;
-    const event = await Event.findOne({ where: { id, tenantId } });
-    if (!event) return res.status(404).json({ error: 'Event not found' });
+    const tenantId = req.user?.tenantId || req.headers['x-tenant-id'];
+
+    const { event_id } = req.params;
+
+    const googleToken = await getValidTokens(tenantId);
+
+    if(!googleToken){
+       return res.status(400).json({ success: false, message: 'No token found' });
+    }
+	  
+    const event = await Event.findOne({ where: { id: event_id, tenantId } });
+    if (!event) return res.status(404).json({ success: false, message: 'Event not found' });
 
     // Delete Google event first (or concurrently)
     if(event.google_event_id) {
@@ -80,20 +300,22 @@ exports.deleteEvent = async (req, res) => {
     }
 	  
     await event.destroy();
-    res.json({ message: 'Event deleted' });
+    res.json({ success: true, message: 'Event deleted' });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Failed to delete event' });
+    const errMsg = error?.message || error.response?.data?.error_description;	  
+    console.error('Error deleteEvent', errMsg);
+    res.status(500).json({ success: false, message: 'Failed to delete event' });
   }
 };
 
 exports.syncAllEvents = async (req, res) => {
    try {
-     const tenantId = req.user.tenantId; // Derived from your auth middleware
+     const tenantId = req.user?.tenantId || req.headers['x-tenant-id']; // Derived from your auth middleware
+
      const channel = await connectRabbitMQ();
      
      if (!channel) {
-	 return res.status(500).json({ error: 'Messaging service unavailable' });
+	 return res.status(500).json({ success: false, message: 'Messaging service unavailable' });
      }
 
      const payload = {
@@ -110,13 +332,15 @@ exports.syncAllEvents = async (req, res) => {
          message: 'Syncing your Google Calendar in the background. Please refresh in a moment.' 
      });
     } catch (error) {
-	 console.error('Sync Error:', error);
-	 res.status(500).json({ error: 'Failed to initiate sync' });
+	 const errMsg = error?.message || error.response?.data?.error_description;   
+	 console.error('Sync Error:', errMsg);
+	 res.status(500).json({ success: false, message: 'Failed to initiate sync' });
     }
 };
 
 exports.disconnectGoogle = async (req, res) => {
-   const tenantId = req.user.tenantId;
+   const tenantId = req.user?.tenantId || req.headers['x-tenant-id'];
+
    const channel = await connectRabbitMQ();
 
    // Send the revoke command to the worker

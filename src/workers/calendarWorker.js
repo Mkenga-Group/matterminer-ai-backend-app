@@ -1,6 +1,8 @@
 const { connectRabbitMQ } = require('../utils/rabbitMQ');
+const { google } = require('googleapis');
+const { getValidTokens } = require('../services/redisService');
 const googleService = require('../services/googleCalendarService');
-const { Event } = require('../models');
+const { Event, Integration } = require('../models');
 
 async function startWorker() {
    const channel = await connectRabbitMQ();
@@ -25,7 +27,7 @@ async function startWorker() {
          if (action === 'FULL_SYNC' || action === 'INCREMENTAL_SYNC') {
 	     console.log(`[Worker] Starting Full Sync for Tenant: ${tenantId}`);
 							                
-	     const changedEvents = await googleService.fetchChangedEvent(tenantId);
+	     const changedEvents = await googleService.fetchChangedEvents(tenantId);
 
 	     // Use a loop to Upsert (Update or Insert)
              for (const gEvent of changedEvents) {
@@ -65,7 +67,7 @@ async function startWorker() {
 
 	      if (integration && integration.metadata.channelId) {
                   try{
-                      const tokens = await getTokens(tenantId);
+                      const tokens = await getValidTokens(tenantId);
 	              const oauth2Client = new google.auth.OAuth2(
 		          process.env.GOOGLE_CLIENT_ID,
 			  process.env.GOOGLE_CLIENT_SECRET

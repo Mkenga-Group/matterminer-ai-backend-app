@@ -15,7 +15,6 @@ function createConnection() {
 require('dotenv').config();
 
 const scopes = [
-   'https://www.googleapis.com/auth/calendar',
    'https://www.googleapis.com/auth/calendar.events',
    'https://www.googleapis.com/auth/userinfo.email',
    'https://www.googleapis.com/auth/userinfo.profile'
@@ -38,4 +37,21 @@ async function getTokens(code) {
    return tokens;
 }
 
-module.exports = { getAuthUrl, getTokens };
+// Add this to your existing module.exports
+async function refreshAccessToken(refreshToken) {
+    const auth = createConnection();
+    auth.setCredentials({
+        refresh_token: refreshToken
+    });
+
+    try {
+        // This method automatically handles the refresh request to Google
+        const { credentials } = await auth.refreshAccessToken();
+        return credentials; // Contains the new access_token and expiry date
+    } catch (error) {
+        console.error('Error refreshing access token:', error);
+        throw error;
+    }
+}
+
+module.exports = { getAuthUrl, getTokens, refreshAccessToken };
