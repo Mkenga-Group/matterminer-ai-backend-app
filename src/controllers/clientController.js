@@ -16,6 +16,12 @@ exports.createEvent = async (req, res) => {
     const tenantId = req.headers['x-tenant-id'] || req.body.tenantId;
 
     try {
+        if (!tenantId || tenantId === 'null') {
+            return res.status(400).json({
+                success: false,
+                message: "Tenant ID must be provided"
+            });
+        }
 
         if (!email) {
             return res.status(400).json({
@@ -79,6 +85,12 @@ exports.createAllDayEvent = async (req, res) => {
     const tenantId = req.headers['x-tenant-id'] || req.body.tenantId;
 
     try {
+        if (!tenantId || tenantId === 'null') {
+            return res.status(400).json({
+                success: false,
+                message: "Tenant ID must be provided"
+            });
+        }
 
         if (!email) {
             return res.status(400).json({
@@ -134,6 +146,12 @@ exports.createContact = async (req, res) => {
     const tenantId = req.headers['x-tenant-id'] || req.body.tenantId;
 
     try {
+        if (!tenantId || tenantId === 'null') {
+            return res.status(400).json({
+                success: false,
+                message: "Tenant ID must be provided"
+            });
+        }
 
         if (!email) {
             return res.status(400).json({
@@ -191,6 +209,12 @@ exports.createClient = async (req, res) => {
     const tenantId = req.headers['x-tenant-id'] || req.body.tenantId;
 
     try {
+        if (!tenantId || tenantId === 'null') {
+            return res.status(400).json({
+                success: false,
+                message: "Tenant ID must be provided"
+            });
+        }
 
         if (!email) {
             return res.status(400).json({
@@ -240,6 +264,12 @@ exports.createMatter = async (req, res) => {
     const tenantId = req.headers['x-tenant-id'] || req.body.tenantId;
 
     try {
+        if (!tenantId || tenantId === 'null') {
+            return res.status(400).json({
+                success: false,
+                message: "Tenant ID must be provided"
+            });
+        }
 
         if (!email) {
             return res.status(400).json({
@@ -323,6 +353,13 @@ exports.login = async (req, res) => {
 exports.isLoginSessionValid = async (req, res) => {
     const email = req.headers['x-user-email'] || req.query.email;
     try {
+        if (!tenantId || tenantId === 'null') {
+            return res.status(400).json({
+                success: false,
+                message: "Tenant ID must be provided"
+            });
+        }
+
         if (!email) {
             return res.status(400).json({
                 success: false,
@@ -356,6 +393,13 @@ exports.searchCountries = async (req, res) => {
         const email = req.headers['x-user-email'];
         const tenantId = req.headers['x-tenant-id'] || req.query.tenantId;
         const { page, per_page, search, sort_by, sort_order } = req.query;
+
+        if (!tenantId || tenantId === 'null') {
+            return res.status(400).json({
+                success: false,
+                message: "Tenant ID must be provided"
+            });
+        }
 
         // 2. Call the utility method we created
         // We pass these as an object to the filters paramet
@@ -397,6 +441,13 @@ exports.getContactIdByEmail = async (req, res) => {
         const email = req.headers['x-user-email'];
         const tenantId = req.headers['x-tenant-id'] || req.query.tenantId;
         const { page, per_page, search, sort_by, sort_order } = req.query;
+
+        if (!tenantId || tenantId === 'null') {
+            return res.status(400).json({
+                success: false,
+                message: "Tenant ID must be provided"
+            });
+        }
 
         const params = new URLSearchParams({
             page: page || 1,
@@ -448,6 +499,13 @@ exports.getCaseStageInfo = async (req, res) => {
         const email = req.headers['x-user-email'];
         const tenantId = req.headers['x-tenant-id'] || req.query.tenantId;
         const { page, per_page, search, sort_by, sort_order, is_search = 0 } = req.query;
+
+        if (!tenantId || tenantId === 'null') {
+            return res.status(400).json({
+                success: false,
+                message: "Tenant ID must be provided"
+            });
+        }
 
         // 2. Call the utility method we created
         // We pass these as an object to the filters paramet
@@ -502,6 +560,13 @@ exports.getPracticeAreaInfo = async (req, res) => {
         const email = req.headers['x-user-email'];
         const tenantId = req.headers['x-tenant-id'] || req.query.tenantId;
         const { page, per_page, search, sort_by, sort_order, is_search = 0 } = req.query;
+
+        if (!tenantId || tenantId === 'null') {
+            return res.status(400).json({
+                success: false,
+                message: "Tenant ID must be provided"
+            });
+        }
 
         // 2. Call the utility method we created
         // We pass these as an object to the filters paramet
@@ -558,6 +623,13 @@ exports.getBillingInfo = async (req, res) => {
         const tenantId = req.headers['x-tenant-id'] || req.query.tenantId;
         const { page, per_page, search, sort_by, sort_order, is_search = 0 } = req.query;
 
+        if (!tenantId || tenantId === 'null') {
+            return res.status(400).json({
+                success: false,
+                message: "Tenant ID must be provided"
+            });
+        }
+
         // 2. Call the utility method we created
         // We pass these as an object to the filters paramet
         const params = new URLSearchParams({
@@ -613,6 +685,13 @@ exports.createProspect = async (req, res) => {
     const tenantId = req.headers['x-tenant-id'] || req.body.tenantId;
 
     try {
+        if (!tenantId || tenantId === 'null') {
+            return res.status(400).json({
+                success: false,
+                message: "Tenant ID must be provided"
+            });
+        }
+
         if (!email) {
             return res.status(400).json({ success: false, message: "Email must be provided" });
         }
@@ -651,6 +730,13 @@ exports.getLeadSources = async (req, res) => {
         const tenantId = req.headers['x-tenant-id'] || req.query.tenantId;
         const { page, per_page, search, sort_by, sort_order, is_search = 0 } = req.query;
 
+        if (!tenantId || tenantId === 'null') {
+            return res.status(400).json({
+                success: false,
+                message: "Tenant ID must be provided"
+            });
+        }
+
         const params = new URLSearchParams({
             page: page || 1,
             per_page: per_page || 15,
@@ -686,6 +772,13 @@ exports.getLeadStatuses = async (req, res) => {
     try {
         const tenantId = req.headers['x-tenant-id'] || req.query.tenantId;
         const { page, per_page, search, sort_by, sort_order, is_search = 0 } = req.query;
+
+        if (!tenantId || tenantId === 'null') {
+            return res.status(400).json({
+                success: false,
+                message: "Tenant ID must be provided"
+            });
+        }
 
         const params = new URLSearchParams({
             page: page || 1,
