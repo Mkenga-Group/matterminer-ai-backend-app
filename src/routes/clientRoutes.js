@@ -15,5 +15,8 @@ router.get('/search-contact', clientController.getContactIdByEmail);
 router.get('/case-stage', clientController.getCaseStageInfo);
 router.get('/practice-area', clientController.getPracticeAreaInfo);
 router.get('/billing-info', clientController.getBillingInfo);
+router.post('/prospects', clientController.createProspect);
+router.get('/lead-sources', clientController.getLeadSources);
+router.get('/lead-statuses', clientController.getLeadStatuses);
 
 module.exports = router;
