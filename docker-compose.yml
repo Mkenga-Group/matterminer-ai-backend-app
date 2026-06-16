@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  calendar-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: matterminer-node-service
+    restart: unless-stopped
+    ports:
+      # Expose port 3000 to the host machine. 
+      # The Python AI Application can reach this service via http://localhost:3000 (if running on host)
+      # or via http://matterminer-node-service:3000 (if running in a shared docker network).
+      - "3000:3000"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+    
+    # -------------------------------------------------------------
+    # LOG MANAGEMENT (Prevents Container Bloating)
+    # -------------------------------------------------------------
+    # Logs emitted by the Node.js app to stdout/stderr are captured 
+    # and stored *outside* the container by the Docker daemon. 
+    # This configuration automatically rotates logs to prevent disk exhaustion.
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    # Connect to the shared MatterMiner network
+    networks:
+      - matterminer_shared_net
+
+# Define a shared bridge network. Both the Python AI app and this Node service
+# should join this network. The Python app can then reach this service at http:/matterminer-node-service:3000
+networks:
+  matterminer_shared_net:
+    name: matterminer-network
+    # If the network is already created by the Python app's docker-compose, you can add `external: true` here.
