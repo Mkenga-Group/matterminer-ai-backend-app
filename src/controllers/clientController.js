@@ -54,7 +54,7 @@ exports.createEvent = async (req, res) => {
             ]
         }
 
-        const result = await apiRequest(`${process.env.CORE_SERVICE_BASE_URL}/api/calendar`, 'post', payload, {}, process.env.CORE_API_KEY, tenantId);
+        const result = await apiRequest(`${process.env.BASE_URL}/api/calendar`, 'post', payload, {}, process.env.CORE_API_KEY, tenantId);
 
         if (result.status === 200 || result.status === 201) {
             console.log('DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD ', tenantId);
@@ -116,7 +116,7 @@ exports.createAllDayEvent = async (req, res) => {
             ]
         }
         console.log('[LOG]      PAYLOAD ', payload, '       ', process.env.CORE_API_KEY);
-        const result = await apiRequest(`${process.env.CORE_SERVICE_BASE_URL}/api/calendar`, 'post', payload, {}, process.env.CORE_API_KEY, tenantId);
+        const result = await apiRequest(`${process.env.BASE_URL}/api/calendar`, 'post', payload, {}, process.env.CORE_API_KEY, tenantId);
         console.log('HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH ', result);
         if (result.status === 200 || result.status === 201) {
             //-. Cleanup chat session
@@ -178,7 +178,7 @@ exports.createContact = async (req, res) => {
 
         console.log('[LOG]      PAYLOAD ', payload, '       ', process.env.CORE_API_KEY);
 
-        //const result = await apiRequest(`${process.env.CORE_SERVICE_BASE_URL}/api/contacts`, 'post', payload, {}, process.env.CORE_API_KEY, tenantId);
+        //const result = await apiRequest(`${process.env.BASE_URL}/api/contacts`, 'post', payload, {}, process.env.CORE_API_KEY, tenantId);
         const result = { status: 201, message: 'Contact has been created.' };
 
         if (result.status === 200 || result.status === 201) {
@@ -234,7 +234,7 @@ exports.createClient = async (req, res) => {
             contact_id
         }
 
-        const result = await apiRequest(`${process.env.CORE_SERVICE_BASE_URL}/api/clients`, 'post', payload, {}, process.env.CORE_API_KEY, tenantId);
+        const result = await apiRequest(`${process.env.BASE_URL}/api/clients`, 'post', payload, {}, process.env.CORE_API_KEY, tenantId);
 
         if (result.status === 200 || result.status === 201) {
             //-. Cleanup chat session		
@@ -283,7 +283,7 @@ exports.createMatter = async (req, res) => {
             tenantId, full_name, email, phone, address
         };
 
-        const result = await apiRequest(`${process.env.CORE_SERVICE_BASE_URL}/api/matters`, 'post', payload, {}, process.env.CORE_API_KEY, tenantId);
+        const result = await apiRequest(`${process.env.BASE_URL}/api/matters`, 'post', payload, {}, process.env.CORE_API_KEY, tenantId);
 
         if (result.status === 200 || result.status === 201) {
             //-. Cleanup chat session
@@ -323,7 +323,7 @@ exports.login = async (req, res) => {
             password
         };
 
-        const result = await apiRequest(`${process.env.CORE_SERVICE_BASE_URL}/api/login`, 'post', payload);
+        const result = await apiRequest(`${process.env.BASE_URL}/api/login`, 'post', payload);
 
         if (result.status === 200) {
             const _message = result.data.message;
@@ -411,7 +411,7 @@ exports.searchCountries = async (req, res) => {
             sort_order: sort_order || 'desc'
         });
 
-        const result = await apiRequest(`${process.env.CORE_SERVICE_BASE_URL}/api/countries?${params}`, 'get', null, {}, process.env.CORE_API_KEY, tenantId);
+        const result = await apiRequest(`${process.env.BASE_URL}/api/countries?${params}`, 'get', null, {}, process.env.CORE_API_KEY, tenantId);
         if (result.status === 200) {
             console.log({ success: true, country_id: result.data.data[0].id, message: 'Retreived country id successfully' });
             return res.status(200).json({
@@ -458,7 +458,7 @@ exports.getContactIdByEmail = async (req, res) => {
         });
 
 
-        const urlParams = `${process.env.CORE_SERVICE_BASE_URL}/api/contacts?${params}`;
+        const urlParams = `${process.env.BASE_URL}/api/contacts?${params}`;
 
         const result = await apiRequest(urlParams, 'get', {}, null, process.env.CORE_API_KEY, tenantId);
         if (result.status === 200) {
@@ -517,7 +517,7 @@ exports.getCaseStageInfo = async (req, res) => {
             sort_order: sort_order || 'desc'
         });
 
-        const result = await apiRequest(`${process.env.CORE_SERVICE_BASE_URL}/api/case-stages?${params}`, 'get', null, {}, process.env.CORE_API_KEY, tenantId);
+        const result = await apiRequest(`${process.env.BASE_URL}/api/case-stages?${params}`, 'get', null, {}, process.env.CORE_API_KEY, tenantId);
         if (result.status === 200) {
             const apiData = result.data.data || [];
             if (parseInt(is_search) === 1) {
@@ -578,7 +578,7 @@ exports.getPracticeAreaInfo = async (req, res) => {
             sort_order: sort_order || 'desc'
         });
 
-        const result = await apiRequest(`${process.env.CORE_SERVICE_BASE_URL}/api/practice-areas?${params}`, 'get', null, {}, process.env.CORE_API_KEY, tenantId);
+        const result = await apiRequest(`${process.env.BASE_URL}/api/practice-areas?${params}`, 'get', null, {}, process.env.CORE_API_KEY, tenantId);
         if (result.status === 200) {
             const apiData = result.data.data || [];
             console.log('KKKKKKKK ', apiData);
@@ -640,7 +640,7 @@ exports.getBillingInfo = async (req, res) => {
             sort_order: sort_order || 'desc'
         });
 
-        const result = await apiRequest(`${process.env.CORE_SERVICE_BASE_URL}/api/billing-types?${params}`, 'get', null, {}, process.env.CORE_API_KEY, tenantId);
+        const result = await apiRequest(`${process.env.BASE_URL}/api/billing-types?${params}`, 'get', null, {}, process.env.CORE_API_KEY, tenantId);
         if (result.status === 200) {
             const apiData = result.data.data || [];
             if (parseInt(is_search) === 1) {
@@ -705,7 +705,7 @@ exports.createProspect = async (req, res) => {
             lead_status_id
         };
 
-        const result = await apiRequest(`${process.env.CORE_SERVICE_BASE_URL}/api/prospects`, 'post', payload, {}, process.env.CORE_API_KEY, tenantId);
+        const result = await apiRequest(`${process.env.BASE_URL}/api/prospects`, 'post', payload, {}, process.env.CORE_API_KEY, tenantId);
 
         if (result.status === 200 || result.status === 201) {
             await ChatSession.destroy({ where: { tenantId } }); // Wipe draft context
@@ -745,7 +745,7 @@ exports.getLeadSources = async (req, res) => {
             sort_order: sort_order || 'desc'
         });
 
-        const result = await apiRequest(`${process.env.CORE_SERVICE_BASE_URL}/api/lead-sources?${params}`, 'get', null, {}, process.env.CORE_API_KEY, tenantId);
+        const result = await apiRequest(`${process.env.BASE_URL}/api/lead-sources?${params}`, 'get', null, {}, process.env.CORE_API_KEY, tenantId);
 
         if (result.status === 200) {
             const apiData = result.data.data || [];
@@ -788,7 +788,7 @@ exports.getLeadStatuses = async (req, res) => {
             sort_order: sort_order || 'desc'
         });
 
-        const result = await apiRequest(`${process.env.CORE_SERVICE_BASE_URL}/api/lead-statuses?${params}`, 'get', null, {}, process.env.CORE_API_KEY, tenantId);
+        const result = await apiRequest(`${process.env.BASE_URL}/api/lead-statuses?${params}`, 'get', null, {}, process.env.CORE_API_KEY, tenantId);
 
         if (result.status === 200) {
             const apiData = result.data.data || [];

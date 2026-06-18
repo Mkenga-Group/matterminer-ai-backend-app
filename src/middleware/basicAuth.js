@@ -2,8 +2,8 @@ const crypto = require('crypto');
 require('dotenv').config();
 
 // 1. FAIL-FAST: Validate configuration at startup, not during request
-const expectedUserString = process.env.EXTERNAL_API_USER;
-const expectedPassString = process.env.EXTERNAL_API_PASS;
+const expectedUserString = process.env.SERVICE_USER_NAME;
+const expectedPassString = process.env.SERVICE_USER_PASS;
 
 if (!expectedUserString || !expectedPassString) {
     throw new Error('CRITICAL: EXTERNAL_API_USER or EXTERNAL_API_PASS must be configured in environment variables.');
@@ -18,7 +18,7 @@ const expectedPassHash = crypto.createHash('sha256').update(expectedPassString).
  */
 module.exports = function basicAuth(req, res, next) {
     const authHeader = req.headers['authorization'];
-    
+
     // Fast fail for missing headers
     if (!authHeader || !authHeader.startsWith('Basic ')) {
         return rejectRequest(req, res, 'Missing or incorrect auth type');
@@ -35,7 +35,7 @@ module.exports = function basicAuth(req, res, next) {
     // Decode base64 payload
     const decoded = Buffer.from(b64auth, 'base64').toString('utf8');
     const separatorIndex = decoded.indexOf(':');
-    
+
     if (separatorIndex === -1) return rejectRequest(req, res, 'Malformed credentials format');
 
     const providedUser = decoded.slice(0, separatorIndex);
