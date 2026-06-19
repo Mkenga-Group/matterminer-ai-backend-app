@@ -8,10 +8,10 @@ services:
     container_name: matterminer-node-service
     restart: unless-stopped
     ports:
-      # Expose port 3000 to the host machine. 
-      # The Python AI Application can reach this service via http://localhost:3000 (if running on host)
-      # or via http://matterminer-node-service:3000 (if running in a shared docker network).
-      - "3000:3000"
+      # Expose port 3005 strictly to the host's localhost loopback interface to align with Nginx. 
+      # This forces all external traffic to go securely through the Nginx proxy and prevents Docker from exposing 3005 publicly.
+      # Python AI Application can still reach this service internally via http://matterminer-node-service:3000
+      - "127.0.0.1:3005:3000"
     env_file:
       - .env
     environment:
