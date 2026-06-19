@@ -42,9 +42,9 @@ Integration.init({
 	tableName: 'integrations',
 	timestamps: true,   
 	indexes: [
-          { fields: ['tenantId', 'provider'] },
-	  // Indexing specific keys inside JSON metadata for performance */
-	  { fields: [sequelize.json('metadata.resourceId')] } 
+          { fields: ['tenantId', 'provider'] }
+	  // The metadata.resourceId index was removed because Sequelize sync() generates malformed MySQL syntax for JSON indexes. 
+	  // Best practice: If performance requires this index in the future, apply it via a raw SQL migration (e.g., ALTER TABLE... ADD INDEX)
 	]
    });
 
