@@ -70,7 +70,6 @@ migrator.up()
   });
 
 
-const swaggerDocument = YAML.load(path.join(__dirname, '..', 'swagger.yaml'));
 const yamlPath = path.join(__dirname, '..', 'swagger.yaml');
 if (fs.existsSync(yamlPath)) {
   const swaggerDocument = YAML.load(yamlPath);
