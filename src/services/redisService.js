@@ -5,8 +5,7 @@ const { refreshAccessToken } = require('../services/googleOAuth');
 /**
  * Initialize client with Auto-Reconnect Logic
  */
-const client = redis.createClient({
-    password: process.env.REDIS_PASS,
+const redisOptions = {
     socket: {
         host: process.env.REDIS_HOST,
         // The password should usually stay at the top level or within socket depending on library version
@@ -22,7 +21,13 @@ const client = redis.createClient({
             return delay;
         }
     }
-});
+};
+
+if (process.env.REDIS_PASS) {
+    redisOptions.password = process.env.REDIS_PASS;
+}
+
+const client = redis.createClient(redisOptions);
 
 /**
  * Global Error Handler
