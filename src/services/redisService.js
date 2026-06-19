@@ -12,15 +12,13 @@ const client = redis.createClient({
         // The password should usually stay at the top level or within socket depending on library version
         // Adding the strategy here prevents the "Socket closed unexpectedly" crash
         reconnectStrategy: (retries) => {
-            const delay = Math.min(retries * 100, 3000); // Exponential backoff up to 3 seconds
+            const delay = Math.min(retries * 500, 5000); // Backoff up to 5 seconds
             console.warn(`[Redis] Connection lost. Attempting reconnect #${retries} in ${delay}ms...`);
             
-            // Optional: Stop retrying after a certain point (e.g., 20 attempts) 
-            // to avoid infinite loops if the server is permanently down.
-            if (retries > 20) {
-                return new Error('Redis Max Retry Attempts Reached');
-            }
-            
+            // We return a delay indefinitely instead of capping at 20 attempts.
+            // In a Dockerized environment, the Redis container might start after this service
+            // or might be restarted. Allowing indefinite retries prevents this service 
+            // from permanently losing its connection.
             return delay;
         }
     }
