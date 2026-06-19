@@ -59,12 +59,14 @@ app.use((req, res, next) => {
 
 app.use(morgan('tiny'));
 
-sequelize.sync({ alter: true })
+const migrator = require('./config/migrator');
+
+migrator.up()
   .then(() => {
-    console.log("Synced db.");
+    console.log("Database migrations successfully executed.");
   })
   .catch((err) => {
-    console.log("Failed to sync db: " + err.message);
+    console.error("Failed to run migrations: " + err.message);
   });
 
 
