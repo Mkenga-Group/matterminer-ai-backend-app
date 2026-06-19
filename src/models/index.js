@@ -9,8 +9,8 @@ const ChatSession = require('./ChatSession');
 Event.hasMany(AuditLog, { foreignKey: 'eventId', as: 'auditLogs' });
 AuditLog.belongsTo(Event, { foreignKey: 'eventId', as: 'event' });
 
-Wallet.hasMany(AuditLog, { foreignKey: 'tenantId', as: 'auditLogs' });
-AuditLog.belongsTo(Wallet, { foreignKey: 'tenantId', as: 'wallet' });
+Wallet.hasMany(AuditLog, { foreignKey: 'tenantId', sourceKey: 'tenantId', as: 'auditLogs' });
+AuditLog.belongsTo(Wallet, { foreignKey: 'tenantId', targetKey: 'tenantId', as: 'wallet' });
 
 ChatSession.hasMany(AuditLog, { foreignKey: 'sessionId', as: 'auditLogs' });
 AuditLog.belongsTo(ChatSession, { foreignKey: 'sessionId', as: 'chatSession' });
