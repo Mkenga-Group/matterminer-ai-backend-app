@@ -1,14 +1,26 @@
 {
-  "name": "matterminer-calendar-service",
+  "name": "matterminer-node-service",
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [],
-  "author": "",
+  "description": "Backend Node.js microservice for MatterMiner handling calendar integrations, AI/RAG capabilities, and message queues.",
+  "keywords": [
+    "matterminer",
+    "calendar",
+    "integration",
+    "google-api",
+    "microsoft-graph",
+    "rag",
+    "langchain",
+    "pinecone",
+    "rabbitmq",
+    "microservice",
+    "nodejs"
+  ],
+  "author": "MatterMiner Team",
   "license": "ISC",
-  "description": "",
   "dependencies": {
     "@aws-sdk/client-secrets-manager": "^3.1069.0",
     "@azure/msal-node": "^5.0.2",
