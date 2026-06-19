@@ -23,8 +23,12 @@ const redisOptions = {
     }
 };
 
-if (process.env.REDIS_PASS) {
-    redisOptions.password = process.env.REDIS_PASS;
+const pass = process.env.REDIS_PASS ? process.env.REDIS_PASS.trim() : '';
+
+// Only set password if it is actually meaningful. 
+// Ignore common default/dummy values that might linger in server environments.
+if (pass && pass !== 'redis_pass' && pass !== 'null' && pass !== 'undefined' && pass !== 'false') {
+    redisOptions.password = pass;
 }
 
 const client = redis.createClient(redisOptions);
