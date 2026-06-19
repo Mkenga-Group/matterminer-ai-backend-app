@@ -16,6 +16,14 @@ services:
       - .env
     environment:
       - NODE_ENV=production
+
+    healthcheck:
+      # Alpine Linux uses wget instead of curl by default
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/app/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
     
     # -------------------------------------------------------------
     # LOG MANAGEMENT (Prevents Container Bloating)
