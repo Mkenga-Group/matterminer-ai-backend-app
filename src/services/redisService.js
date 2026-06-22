@@ -32,18 +32,35 @@ if (pass && pass !== 'redis_pass' && pass !== 'null' && pass !== 'undefined' && 
 }
 
 let client;
+let isHealing = false;
 
 function setupClient(options) {
     const newClient = redis.createClient(options);
 
-    newClient.on('error', (err) => {
-        // Suppress the auth error from spamming the global handler since we catch it in connect
-        if (!err.message.includes('without any password configured')) {
+    newClient.on('error', async (err) => {
+        if (err.message.includes('without any password configured')) {
+            if (isHealing) return; // Prevent multiple healing loops
+            isHealing = true;
+            console.warn('[Redis] Auth mismatch detected. Auto-healing by stripping password...');
+            
+            // Strip the password from options
+            delete options.password;
+            
+            // Stop the broken client from endlessly retrying
+            try { await newClient.disconnect(); } catch (e) {}
+            
+            // Recreate global client and reconnect without password
+            client = setupClient(options);
+            client.connect().catch(e => console.error('Fallback connect failed:', e));
+        } else {
             console.error('Redis Client Error:', err.message);
         }
     });
 
-    newClient.on('connect', () => console.log('Redis Client: Connected'));
+    newClient.on('connect', () => {
+        isHealing = false; // Reset flag on successful connect
+        console.log('Redis Client: Connected');
+    });
     newClient.on('reconnecting', () => console.log('Redis Client: Reconnecting...'));
     newClient.on('ready', () => console.log('Redis Client: Ready and accepting commands'));
 
@@ -58,23 +75,7 @@ function setupClient(options) {
     try {
         await client.connect();
     } catch (err) {
-        if (err.message && err.message.includes('without any password configured')) {
-            console.warn('[Redis] Auth mismatch: Server does not require a password. Auto-healing by stripping password...');
-            
-            // Strip the password from options
-            delete redisOptions.password;
-            
-            // Recreate client and reconnect
-            client = setupClient(redisOptions);
-            try {
-                await client.connect();
-                console.log('[Redis] Auto-healing successful.');
-            } catch (fallbackErr) {
-                console.error('Fallback Redis Connection Failed:', fallbackErr);
-            }
-        } else {
-            console.error('Initial Redis Connection Failed:', err);
-        }
+        console.error('Initial Redis Connection Failed:', err);
     }
 })();
 
