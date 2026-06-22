@@ -31,30 +31,50 @@ if (pass && pass !== 'redis_pass' && pass !== 'null' && pass !== 'undefined' && 
     redisOptions.password = pass;
 }
 
-const client = redis.createClient(redisOptions);
+let client;
+
+function setupClient(options) {
+    const newClient = redis.createClient(options);
+
+    newClient.on('error', (err) => {
+        // Suppress the auth error from spamming the global handler since we catch it in connect
+        if (!err.message.includes('without any password configured')) {
+            console.error('Redis Client Error:', err.message);
+        }
+    });
+
+    newClient.on('connect', () => console.log('Redis Client: Connected'));
+    newClient.on('reconnecting', () => console.log('Redis Client: Reconnecting...'));
+    newClient.on('ready', () => console.log('Redis Client: Ready and accepting commands'));
+
+    return newClient;
+}
 
 /**
- * Global Error Handler
- * This keeps the Node process alive even when Redis is down
- */
-client.on('error', (err) => {
-    console.error('Redis Client Error:', err.message);
-});
-
-client.on('connect', () => console.log('Redis Client: Connected'));
-client.on('reconnecting', () => console.log('Redis Client: Reconnecting...'));
-client.on('ready', () => console.log('Redis Client: Ready and accepting commands'));
-
-/**
- * Connect to Redis
+ * Connect to Redis with Auto-Healing Auth Logic
  */
 (async () => {
+    client = setupClient(redisOptions);
     try {
-        if (!client.isOpen) {
-            await client.connect();
-        }
+        await client.connect();
     } catch (err) {
-        console.error('Initial Redis Connection Failed:', err);
+        if (err.message && err.message.includes('without any password configured')) {
+            console.warn('[Redis] Auth mismatch: Server does not require a password. Auto-healing by stripping password...');
+            
+            // Strip the password from options
+            delete redisOptions.password;
+            
+            // Recreate client and reconnect
+            client = setupClient(redisOptions);
+            try {
+                await client.connect();
+                console.log('[Redis] Auto-healing successful.');
+            } catch (fallbackErr) {
+                console.error('Fallback Redis Connection Failed:', fallbackErr);
+            }
+        } else {
+            console.error('Initial Redis Connection Failed:', err);
+        }
     }
 })();
 
