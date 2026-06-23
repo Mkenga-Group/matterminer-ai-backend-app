@@ -1,7 +1,7 @@
 module.exports = {
 	apps: [
 		{
-			name: 'MATTER_MINER_BACKEND_NODE',
+			name: 'MATTER_MINER_NODE_SERVICE',
 			script: 'src/server.js',
 			exec_mode: 'fork',
 			instances: '1',

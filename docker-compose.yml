@@ -47,4 +47,4 @@ services:
 networks:
   matterminer_shared_net:
     name: matterminer-network
-    # If the network is already created by the Python app's docker-compose, you can add `external: true` here.
+    external: true
