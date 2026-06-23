@@ -20,16 +20,21 @@ const externalApiLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-router.use('/events', eventRoutes);
-router.use('/auth', authRoutes);
-router.use('/rag/lookup', ragRoutes);
+const v1Router = express.Router();
 
-router.use('/webhook', externalApiLimiter, basicAuth, webhookRoutes);
-router.use('/wallet', walletRoutes);
-router.use('/chat', chatSessionRoutes);
-router.use('/core', clientRoutes);
+v1Router.use('/events', eventRoutes);
+v1Router.use('/auth', authRoutes);
+v1Router.use('/rag/lookup', ragRoutes);
 
-// Placeholder for routes
+v1Router.use('/webhook', externalApiLimiter, basicAuth, webhookRoutes);
+v1Router.use('/wallet', walletRoutes);
+v1Router.use('/chat', chatSessionRoutes);
+v1Router.use('/core', clientRoutes);
+
+// Mount the v1 router
+router.use('/v1', v1Router);
+
+// Keep healthcheck unversioned at /app/health for Docker
 router.get('/health', (req, res) => {
   res.json({ success: true, message: 'Calendar Service API | wallet API' });
 });
