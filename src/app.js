@@ -23,6 +23,9 @@ require('dotenv').config();
 
 const app = express();
 
+// Trust Nginx Proxy to get correct client IPs for rate-limiting
+app.set('trust proxy', 1);
+
 app.use(helmet());
 app.use(cors());
 
