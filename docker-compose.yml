@@ -1,7 +1,7 @@
 #version: '3.8'
 
 services:
-  calendar-service:
+  matterminer-node-service:
     build:
       context: .
       dockerfile: Dockerfile
