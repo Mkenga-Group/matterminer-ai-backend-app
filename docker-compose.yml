@@ -16,6 +16,7 @@ services:
       - .env
     environment:
       - NODE_ENV=production
+      - PORT=3000
 
     healthcheck:
       # Alpine Linux uses wget instead of curl by default
