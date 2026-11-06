@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node src/scripts/testClientController.js && node src/scripts/smokeTestCoreRoutes.js",
+    "test:smoke": "node src/scripts/smokeTestCoreRoutes.js"
   },
   "description": "Backend Node.js microservice for MatterMiner handling calendar integrations, AI/RAG capabilities, and message queues.",
   "keywords": [

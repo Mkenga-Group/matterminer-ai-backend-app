@@ -483,7 +483,6 @@ paths:
         200:
           description: Current status of the sync job
 
-paths:
   /wallet/check-balance:
     get:
       summary: Pre-flight balance check
@@ -561,3 +560,262 @@ paths:
           description: Invalid input data
         500:
           description: Internal server error
+
+  /v1/core/login:
+    post:
+      summary: Authenticate user against MatterMiner Core API (/api/v1/login)
+      tags: [Core API Proxy]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email, example: "user@example.com" }
+                password: { type: string, example: "SecurePass@123" }
+      responses:
+        200:
+          description: Login successful and token cached in Redis
+        401:
+          description: Invalid credentials
+
+  /v1/core/hasValidToken:
+    get:
+      summary: Verify whether user has an active Core API session in Redis
+      tags: [Core API Proxy]
+      parameters:
+        - in: header
+          name: x-tenant-id
+          required: true
+          schema: { type: string }
+        - in: header
+          name: x-user-email
+          required: true
+          schema: { type: string, format: email }
+      responses:
+        200:
+          description: Active access token found
+        404:
+          description: Token not found or expired
+
+  /v1/core/standard-event:
+    post:
+      summary: Create a standard calendar event in MatterMiner Core API (/api/v1/calendar)
+      tags: [Core API Proxy]
+      parameters:
+        - in: header
+          name: x-tenant-id
+          required: true
+          schema: { type: string }
+        - in: header
+          name: x-user-email
+          required: true
+          schema: { type: string, format: email }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title, start_datetime, end_datetime]
+              properties:
+                title: { type: string, example: "Initial Hearing" }
+                start_datetime: { type: string, format: date-time, example: "2026-11-15T09:00:00Z" }
+                end_datetime: { type: string, format: date-time, example: "2026-11-15T10:00:00Z" }
+                description: { type: string, nullable: true }
+                colour_code: { type: string, nullable: true }
+                location: { type: string, nullable: true }
+                timezone: { type: string, nullable: true }
+                sync_to_calendar: { type: boolean, default: false }
+                recurrence_rule: { type: string, nullable: true }
+                matter_id: { type: integer, nullable: true }
+                user_id: { type: integer, nullable: true }
+                calendar_event_type_id: { type: integer, nullable: true }
+                visibility: { type: string, enum: [public, private], default: "private" }
+                status: { type: string, default: "confirmed" }
+                event_type: { type: string, default: "hearing" }
+                attendees: { type: array, items: { type: object }, nullable: true }
+                reminders: { type: array, items: { type: object }, nullable: true }
+      responses:
+        200:
+          description: Event created and draft session cleared
+
+  /v1/core/all-event:
+    post:
+      summary: Create an all-day calendar event in MatterMiner Core API (/api/v1/calendar)
+      tags: [Core API Proxy]
+      parameters:
+        - in: header
+          name: x-tenant-id
+          required: true
+          schema: { type: string }
+        - in: header
+          name: x-user-email
+          required: true
+          schema: { type: string, format: email }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title, start_datetime, end_datetime]
+              properties:
+                title: { type: string, example: "Court Holiday" }
+                start_datetime: { type: string, format: date-time, example: "2026-11-15T00:00:00Z" }
+                end_datetime: { type: string, format: date-time, example: "2026-11-15T23:59:59Z" }
+                description: { type: string, nullable: true }
+      responses:
+        200:
+          description: All-day event created and draft session cleared
+
+  /v1/core/contact:
+    post:
+      summary: Create a contact in MatterMiner Core API (/api/v1/contacts)
+      tags: [Core API Proxy]
+      parameters:
+        - in: header
+          name: x-tenant-id
+          required: true
+          schema: { type: string }
+        - in: header
+          name: x-user-email
+          required: true
+          schema: { type: string, format: email }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [first_name, last_name]
+              properties:
+                contact_type: { type: string, default: "primary" }
+                entity: { type: string, nullable: true }
+                entity_id: { type: integer, nullable: true }
+                title: { type: string, nullable: true }
+                first_name: { type: string, example: "Jane" }
+                middle_name: { type: string, nullable: true }
+                last_name: { type: string, example: "Doe" }
+                client_email: { type: string, format: email, nullable: true }
+                country_code: { type: string, nullable: true }
+                phone_number: { type: string, nullable: true }
+                model_type: { type: string, default: "App\\Models\\Prospect" }
+                model_id: { type: integer, default: 1 }
+                active: { type: boolean, default: true }
+                featured: { type: boolean, default: false }
+                include_in_emails: { type: boolean, nullable: true }
+      responses:
+        200:
+          description: Contact created and draft session cleared
+
+  /v1/core/client:
+    post:
+      summary: Create a client in MatterMiner Core API (/api/v1/clients)
+      tags: [Core API Proxy]
+      parameters:
+        - in: header
+          name: x-tenant-id
+          required: true
+          schema: { type: string }
+        - in: header
+          name: x-user-email
+          required: true
+          schema: { type: string, format: email }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [country_id, street]
+              properties:
+                client_type: { type: string, default: "company" }
+                company_name: { type: string, nullable: true }
+                country_id: { type: integer, example: 1 }
+                street: { type: string, example: "123 Main Street" }
+                contact_id: { type: integer, nullable: true }
+                contact_data:
+                  type: object
+                  properties:
+                    first_name: { type: string, example: "Jane" }
+                    last_name: { type: string, example: "Doe" }
+                    email: { type: string, format: email, example: "jane@example.com" }
+      responses:
+        200:
+          description: Client created and draft session cleared
+
+  /v1/core/matters:
+    post:
+      summary: Create a matter in MatterMiner Core API (/api/v1/matters)
+      tags: [Core API Proxy]
+      parameters:
+        - in: header
+          name: x-tenant-id
+          required: true
+          schema: { type: string }
+        - in: header
+          name: x-user-email
+          required: true
+          schema: { type: string, format: email }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [client_id, name, practice_area_id, case_stage_id, billing_type_id]
+              properties:
+                client_id: { type: integer, example: 1 }
+                name: { type: string, example: "Commercial Lease Dispute" }
+                practice_area_id: { type: integer, example: 1 }
+                case_stage_id: { type: integer, example: 1 }
+                billing_type_id: { type: integer, example: 1 }
+                access_type: { type: string, default: "public" }
+                status: { type: string, default: "open" }
+                matter_budget:
+                  type: object
+                  nullable: true
+                  properties:
+                    amount: { type: number, example: 1000.0 }
+                    currency: { type: string, nullable: true }
+      responses:
+        200:
+          description: Matter created and draft session cleared
+
+  /v1/core/prospects:
+    post:
+      summary: Create a prospect in MatterMiner Core API (/api/v1/prospects)
+      tags: [Core API Proxy]
+      parameters:
+        - in: header
+          name: x-tenant-id
+          required: true
+          schema: { type: string }
+        - in: header
+          name: x-user-email
+          required: true
+          schema: { type: string, format: email }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [lead_source_id, lead_status_id]
+              properties:
+                client_type: { type: string, default: "company" }
+                lead_source_id: { type: integer, example: 1 }
+                lead_status_id: { type: integer, example: 1 }
+                contact_data:
+                  type: object
+                  properties:
+                    first_name: { type: string, example: "Jane" }
+                    last_name: { type: string, example: "Doe" }
+                    email: { type: string, format: email, example: "jane@example.com" }
+      responses:
+        200:
+          description: Prospect created and draft session cleared
+
