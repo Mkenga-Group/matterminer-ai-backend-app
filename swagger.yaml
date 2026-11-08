@@ -1,6 +1,6 @@
 openapi: 3.0.0
 info:
-  title: MatterMiner API: Calendar Sync & Wallet Services
+  title: "MatterMiner API: Calendar Sync & Wallet Services"
   version: 1.0.0
   description: >
     Welcome to the MatterMiner Core API. This service provides a multi-tenant infrastructure for conversational AI agents, allowing them to:
@@ -483,49 +483,97 @@ paths:
         200:
           description: Current status of the sync job
 
-  /wallet/check-balance:
+  /v1/wallet/check-balance:
     get:
-      summary: Pre-flight balance check
-      description: Verifies if a tenant has enough tokens (RESERVE_AMOUNT) to start an AI interaction.
+      summary: Pre-flight AI wallet balance check (Proxied to Core Laravel GET /api/v1/wallet/balance)
+      description: >
+        Stateless gateway proxy to Core Laravel (`GET /api/v1/wallet/balance`). Verifies whether the tenant
+        has an active wallet and sufficient token balance (`>= reserve_threshold`, default 1500 tokens) to execute an AI turn.
       tags:
         - Wallet
       security:
         - bearerAuth: []
       parameters:
+        - in: header
+          name: X-Tenant-ID
+          required: false
+          schema:
+            type: string
+          description: Unique ID of the tenant (can also be passed via query parameter `tenantId`)
+        - in: header
+          name: X-Correlation-ID
+          required: false
+          schema:
+            type: string
+          description: Unique request correlation ID for distributed tracing
         - in: query
           name: tenantId
-          required: true
+          required: false
           schema:
             type: string
           description: Unique ID of the tenant
       responses:
         200:
-          description: Balance check result
+          description: Balance check result from Core Laravel wallet source of truth
           content:
             application/json:
               schema:
                 type: object
                 properties:
+                  status:
+                    type: integer
+                    example: 200
+                  success:
+                    type: boolean
+                    example: true
                   allowed:
                     type: boolean
                     example: true
                   balance:
                     type: integer
-                    example: 8500
+                    example: 24500
+                  required:
+                    type: integer
+                    example: 1500
                   error:
                     type: string
                     nullable: true
+                    enum: [null, insufficient_funds, wallet_suspended, no_wallet]
+                    example: null
+                  message:
+                    type: string
+                    example: "Tenant wallet balance"
+                  data:
+                    type: object
+                    nullable: true
         401:
-          description: Unauthorized - Missing or invalid token
+          description: Unauthorized - Missing tenant ID or invalid API key
+        503:
+          description: Service Unavailable - Core Laravel wallet endpoint unreachable
 
-  /wallet/deplete:
+  /v1/wallet/deplete:
     post:
-      summary: Track and deduct token usage
-      description: Called after AI interaction to deduct actual tokens used from the wallet.
+      summary: Track and deduct AI token usage (Proxied to Core Laravel POST /api/v1/wallet/deplete)
+      description: >
+        Stateless gateway proxy to Core Laravel (`POST /api/v1/wallet/deplete`). Called asynchronously by the Python AI
+        microservice after each `/ai/chat` or `/ai/chat/stream` completion to deduct actual tokens consumed from the tenant's Core Laravel wallet.
       tags:
         - Wallet
       security:
         - bearerAuth: []
+      parameters:
+        - in: header
+          name: X-Tenant-ID
+          required: false
+          schema:
+            type: string
+          description: Unique ID of the tenant
+        - in: header
+          name: X-Correlation-ID
+          required: false
+          schema:
+            type: string
+          description: Unique request correlation ID for idempotency
       requestBody:
         required: true
         content:
@@ -533,31 +581,65 @@ paths:
             schema:
               type: object
               required:
-                - tenantId
                 - total_tokens
               properties:
+                tenant_id:
+                  type: string
+                  example: "tenant_acme_01"
                 tenantId:
                   type: string
-                  example: "12345678"
+                  example: "tenant_acme_01"
+                prompt_tokens:
+                  type: integer
+                  example: 840
+                completion_tokens:
+                  type: integer
+                  example: 215
                 total_tokens:
                   type: integer
-                  example: 450
+                  example: 1055
+                model:
+                  type: string
+                  example: "gpt-4o-mini"
+                request_id:
+                  type: string
+                  example: "7cd79403-0269-4c9b-a43e-935b2f7f1d51"
+                timestamp:
+                  type: string
+                  format: date-time
+                  example: "2026-11-08T13:15:00.000Z"
       responses:
         200:
-          description: Tokens deducted successfully
+          description: Tokens deducted successfully in Core Laravel wallet
           content:
             application/json:
               schema:
                 type: object
                 properties:
+                  status:
+                    type: integer
+                    example: 200
                   success:
                     type: boolean
                     example: true
-                  newBalance:
+                  balance:
                     type: integer
-                    example: 8050
+                    example: 23445
+                  deducted:
+                    type: integer
+                    example: 1055
+                  message:
+                    type: string
+                    example: "Wallet tokens deducted successfully"
+                  data:
+                    type: object
+                    nullable: true
         400:
-          description: Invalid input data
+          description: Invalid input data (missing tenantId or non-positive token count)
+        401:
+          description: Unauthorized - Missing tenant ID or rejected CORE_API_KEY
+        404:
+          description: Tenant wallet not found in Core Laravel
         500:
           description: Internal server error
 
